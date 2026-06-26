@@ -87,8 +87,8 @@ Fixing #1 and #2 is the obvious next iteration — but they're left visible on p
 
 Deeper write-ups:
 - **[`WALKTHROUGH.md`](./WALKTHROUGH.md)** — *what I built, how, and why*, decision by decision, in my own voice (start here if you want my thinking).
-- [`OnCall_Copilot_Full_Build.md`](./OnCall_Copilot_Full_Build.md) — full build guide + interview Q&A.
-- [`OnCall_Copilot_Explained_Simply.md`](./OnCall_Copilot_Explained_Simply.md) — plain-English tour, no jargon.
+- [`notes/full-build.md`](./notes/full-build.md) — full build guide + interview Q&A.
+- [`notes/explained-simply.md`](./notes/explained-simply.md) — plain-English tour, no jargon.
 
 ## Safety
 

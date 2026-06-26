@@ -28,7 +28,7 @@ An on-call engineer asks a question in plain English — *"checkout is throwing 
 
 ## The build, decision by decision
 
-I'll keep each one short: **what it is → what I chose → the trade-off → why it's right for *this* problem.** (For the deep, line-by-line version see [`OnCall_Copilot_Full_Build.md`](./OnCall_Copilot_Full_Build.md); for the plain-English version see [`OnCall_Copilot_Explained_Simply.md`](./OnCall_Copilot_Explained_Simply.md).)
+I'll keep each one short: **what it is → what I chose → the trade-off → why it's right for *this* problem.** (For the deep, line-by-line version see [`notes/full-build.md`](./notes/full-build.md); for the plain-English version see [`notes/explained-simply.md`](./notes/explained-simply.md).)
 
 ### 1. Grounding first — RAG over the runbooks
 **What:** retrieve the relevant runbook chunks at query time and make the model answer *from them*, with a `[source]` citation.
