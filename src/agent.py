@@ -17,12 +17,16 @@ def _sources(context):
     return sorted(set(re.findall(r"\[([^\]\n]+)\]", context)))
 
 
-def answer(question, client, on_event=None):
-    # on_event(dict) is an optional trace hook (used by the live visualizer).
-    # It defaults to None so the CLI and evals are completely unaffected.
+def answer(question, client, on_event=None, system=None, allowed_tools=None):
+    # on_event(dict) is an optional trace hook (used by the live visualizer + file log).
+    # system / allowed_tools are optional overrides used by the governed multi-agent path.
+    # All default to the original behaviour, so the CLI and evals are unaffected.
     def emit(kind, **data):
         if on_event:
             on_event({"type": kind, **data})
+
+    system = system or SYSTEM_PROMPT
+    toolset = tools.TOOLS if allowed_tools is None else [t for t in tools.TOOLS if t["name"] in allowed_tools]
 
     emit("start", question=question)
     context = retriever.retrieve(question)                 # RAG step
@@ -32,7 +36,7 @@ def answer(question, client, on_event=None):
 
     for step in range(1, config.MAX_AGENT_STEPS + 1):
         emit("llm_request", step=step)
-        resp = client.complete(log, system=SYSTEM_PROMPT, tools=tools.TOOLS)
+        resp = client.complete(log, system=system, tools=toolset)
         emit("llm_response", step=step, text=resp["text"],
              tool_calls=[{"name": c["name"], "args": c["args"]} for c in resp["tool_calls"]])
         if resp["tool_calls"]:

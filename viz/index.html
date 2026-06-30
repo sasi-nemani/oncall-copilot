@@ -24,7 +24,23 @@
   input{flex:1;min-width:280px}
   button{background:var(--accent);color:#03121f;border:none;font-weight:600;cursor:pointer;padding:10px 18px}
   button:disabled{opacity:.5;cursor:default}
+  .toggle{display:inline-flex;align-items:center;gap:6px;color:var(--dim);font-size:13.5px;
+       border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:9px 12px;cursor:pointer}
+  .toggle input{accent-color:var(--agent)}
   .examples{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+  /* agent-role styling (multi-agent mode) */
+  :root{--agent:#ff7eb6;--verify-ok:#22c55e;--verify-bad:#f59e0b}
+  .node.agent .ic{background:var(--agent)}
+  .node.agent{border-color:var(--agent)}
+  .card.agent::before{border-color:var(--agent)}
+  .card.agent{border-left:3px solid var(--agent)}
+  .badge{font-size:10px;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,126,182,.16);
+       border:1px solid rgba(255,126,182,.45);color:#ffc4e0;border-radius:5px;padding:1px 6px;margin-left:2px}
+  .verdict{font-weight:600}.verdict.ok{color:var(--verify-ok)}.verdict.bad{color:var(--verify-bad)}
+  .pipeline{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;font-size:12.5px;color:var(--dim)}
+  .pipeline .step{border:1px solid var(--line);border-radius:7px;padding:4px 10px;background:var(--panel2);opacity:.45;transition:.2s}
+  .pipeline .step.active{opacity:1;border-color:var(--agent);color:var(--txt)}
+  .pipeline .step.done{opacity:1;border-color:var(--verify-ok)}
   .chip{background:var(--panel);border:1px solid var(--line);color:var(--dim);
        border-radius:20px;padding:5px 12px;font-size:12.5px;cursor:pointer}
   .chip:hover{color:var(--txt);border-color:var(--accent)}
@@ -89,11 +105,15 @@
       <option value="anthropic">Anthropic</option>
       <option value="openai">OpenAI</option>
     </select>
+    <label class="toggle" title="Run the triage → investigate → verify → postmortem pipeline">
+      <input type="checkbox" id="multi" /> multi-agent
+    </label>
     <button id="run">Run ▸</button>
     <span class="status"><span class="led" id="led"></span><span id="statustxt">idle</span></span>
   </div>
   <div class="examples" id="examples"></div>
   <div class="meta" id="meta"></div>
+  <div class="pipeline" id="pipeline" style="display:none"></div>
 
   <div class="railwrap">
     <div class="raillabel">Flow at a glance</div>
@@ -105,9 +125,18 @@
 
 <script>
 const $ = s => document.querySelector(s);
-const rail = $("#rail"), tl = $("#tl"), meta = $("#meta"), btn = $("#run");
+const rail = $("#rail"), tl = $("#tl"), meta = $("#meta"), btn = $("#run"), pipeline = $("#pipeline");
 const led = $("#led"), statustxt = $("#statustxt");
 let es = null, railStarted = false;
+
+const PIPE = [["triage","Triage"],["investigator","Investigator"],["verifier","Verifier"],["postmortem","Postmortem"]];
+function showPipeline(){
+  pipeline.style.display = "flex";
+  pipeline.innerHTML = '<span>pipeline:</span>' +
+    PIPE.map(([k,l])=>`<span class="step" data-k="${k}">${l}</span>`).join('<span>→</span>');
+}
+function setStep(k, state){ const el = pipeline.querySelector(`[data-k="${k}"]`); if(el) el.className = "step "+state; }
+function mdBold(s){ return citeify(s).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
 
 const EXAMPLES = [
   "is payments healthy?",
@@ -146,7 +175,50 @@ function card(cls, title, tag, pre, isHTML){
 function handle(ev){
   switch(ev.type){
     case "meta":
-      meta.innerHTML = `provider <b>${esc(ev.provider)}</b> · model <b>${esc(ev.model)}</b>`; break;
+      meta.innerHTML = `provider <b>${esc(ev.provider)}</b> · model <b>${esc(ev.model)}</b>`
+        + (ev.mode==="multi" ? ` · <b style="color:var(--agent)">multi-agent</b>` : ``); break;
+    case "mode":
+      showPipeline(); setStep("triage","active"); break;
+    case "triage":
+      setStep("triage","done"); setStep("investigator","active");
+      railNode("agent","Triage", ev.route);
+      card("agent", "🧭 Triage agent → route: "+ev.route, "router", ev.reason); break;
+    case "draft_answer":
+      setStep("investigator","done"); setStep("verifier","active");
+      card("", "📝 Draft answer (pre-verification)", "from investigator", ev.text); break;
+    case "verify":{
+      setStep("verifier","done"); setStep("postmortem","active");
+      const ok = ev.verdict==="pass";
+      railNode("agent","Verifier", ev.verdict);
+      const c = card("agent", "🛡️ Verifier agent", "independent check", null);
+      c.querySelector(".ttl").innerHTML += ` <span class="badge">agent</span>`;
+      const body = document.createElement("div");
+      body.innerHTML = `grounded: <span class="verdict ${ev.grounded?'ok':'bad'}">${ev.grounded}</span> · `
+        + `safe: <span class="verdict ${ev.safe?'ok':'bad'}">${ev.safe}</span> · `
+        + `verdict: <span class="verdict ${ok?'ok':'bad'}">${ev.verdict}</span>`;
+      c.appendChild(body);
+      if(ev.issues){ const p=document.createElement("pre"); p.textContent=ev.issues; c.appendChild(p); }
+      break; }
+    case "revision":
+      card("agent", "♻️ Revised after feedback", "corrected", ev.text); break;
+    case "guardrail":{
+      railNode("agent", "Guardrails", ev.passed?"pass":(ev.violations.length+" hit"));
+      const tag = ev.after_revision ? "after revision" : "policy";
+      const c = card("agent", "🚦 Guardrails — "+(ev.passed?"pass":"violations"), tag, null);
+      c.querySelector(".ttl").innerHTML += ` <span class="badge">policy</span>`;
+      const b = document.createElement("div");
+      b.innerHTML = ev.passed
+        ? `<span class="verdict ok">all checks passed</span>`
+        : ev.violations.map(v=>`<span class="verdict bad">${esc(v.rule)}</span>: ${esc(v.detail)}`).join("<br/>");
+      c.appendChild(b); break; }
+    case "postmortem":{
+      setStep("postmortem","done");
+      railNode("agent","Postmortem","report");
+      const box = document.createElement("div");
+      box.className = "answerbox"; box.style.borderColor = "var(--agent)";
+      box.innerHTML = `<div class="ttl" style="color:var(--agent)">🧾 Postmortem agent — incident report</div>`
+        + `<div class="body">${mdBold(ev.report)}</div>`;
+      tl.appendChild(box); break; }
     case "start":
       railNode("rag","Question", ev.question.length>32?ev.question.slice(0,32)+"…":ev.question);
       card("", "❓ Question", null, ev.question); break;
@@ -202,10 +274,12 @@ function handle(ev){
 function run(){
   if(es){ es.close(); es=null; }
   tl.innerHTML = ""; rail.innerHTML = ""; railStarted = false; meta.innerHTML = "";
+  pipeline.style.display = "none"; pipeline.innerHTML = "";
   btn.disabled = true; setStatus("run","running");
   const q = encodeURIComponent($("#q").value);
   const p = encodeURIComponent($("#provider").value);
-  es = new EventSource(`/run?q=${q}&provider=${p}`);
+  const mode = $("#multi").checked ? "multi" : "single";
+  es = new EventSource(`/run?q=${q}&provider=${p}&mode=${mode}`);
   es.onmessage = e => { try{ handle(JSON.parse(e.data)); }catch(err){ console.error(err, e.data); } };
   es.onerror = () => { if(es){ es.close(); es=null; } btn.disabled=false;
                        if(statustxt.textContent==="running") setStatus("err","connection closed"); };

@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # Make "from src import ..." work when launched directly.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src import llm, agent, config  # noqa: E402
+from src import llm, agent, agents, trace, config  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = int(os.getenv("VIZ_PORT", "8000"))
@@ -50,6 +50,7 @@ class Handler(BaseHTTPRequestHandler):
     def _run_sse(self, qs):
         question = (qs.get("q") or [""])[0].strip()
         provider = (qs.get("provider") or [config.PROVIDER])[0]
+        mode = (qs.get("mode") or ["single"])[0]
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
@@ -60,9 +61,19 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             client = llm.get_client(provider)
+            run_id = trace.new_run_id()
             self._sse({"type": "meta", "provider": provider,
-                       "model": getattr(client, "model", "?")})
-            agent.answer(question, client, on_event=self._sse)
+                       "model": getattr(client, "model", "?"), "mode": mode, "run_id": run_id})
+            # tee: stream to the browser AND log every event to logs/run-<id>.jsonl
+            logger = trace.file_logger(run_id, question, provider, mode)
+            sink = trace.tee(self._sse, logger)
+            try:
+                if mode == "multi":
+                    agents.run(question, client, on_event=sink)
+                else:
+                    agent.answer(question, client, on_event=sink)
+            finally:
+                logger.close()
         except Exception as e:                              # stream the error, don't 500
             self._sse({"type": "error", "message": f"{type(e).__name__}: {e}"})
         self._sse({"type": "done"})

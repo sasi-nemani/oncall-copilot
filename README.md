@@ -58,14 +58,34 @@ The eval **judge** is pinned to a strong, fixed model (default `anthropic/claude
 
 `python -m viz.server` (then open **http://localhost:8000**) is a tiny, **dependency-free** web app that streams the agent's trajectory in real time over Server-Sent Events. Type a question and watch the whole flow at a glance: **RAG retrieval → each model decision → read-only tool calls (with args + observations) → the loop → the final cited answer.** It's the clearest way to *see* how an agent thinks — and to watch a cheaper model take more steps (or go wrong) than a stronger one on the same question. The agent stays untouched in normal use: the visualizer hooks an optional `on_event` callback that defaults to off, so the CLI and evals are unaffected.
 
+### Optional: governed multi-agent mode
+
+The default is a **single agent** — and that's a deliberate, defensible choice. But there's an **opt-in pipeline** (`ONCALL_MODE=multi`, or the visualizer's "multi-agent" toggle) that wraps the investigator in three more roles, to demonstrate a governed multi-agent design:
+
+```
+triage (router) → investigator (the single agent) → verifier (independent) → postmortem
+```
+
+- **Triage** — a lightweight classifier: incident / knowledge / out-of-scope. Honestly a *router*, not a heavyweight agent; it only short-circuits clear out-of-scope questions, so the investigator keeps full tool access.
+- **Verifier** — an **actor→critic** guardrail run by an *independent* model (the eval judge, by default a different provider than the answerer), checking the draft is grounded in the gathered evidence and breaks no safety rule. Can send it back for **one revision**.
+- **Postmortem** — synthesizes a blameless incident report from the trajectory.
+
+On top of that, the governed path adds three production-shaped controls:
+- **Forced response structure** — answers must carry labelled sections (`Diagnosis / Evidence / Recommended action / Approval`); missing structure triggers a revision.
+- **Configurable guardrails** — policy lives in [`guardrails.json`](./guardrails.json) (allowed tools, required citations, required sections, forbidden "I-did-a-destructive-thing" phrases, approval-language requirement). `src/guardrails.py` checks every answer and forces a revision on any violation.
+- **Full run logging** — every run (single *or* multi) writes a JSONL trace to `logs/run-<id>.jsonl`: reasoning, each action + observation, verifier verdict, guardrail result, final answer. Observability for the agent itself.
+
+**Honest result:** on this 15-case suite, governed multi-agent mode holds the gate at **12/15 = 80% (OPEN)** on Anthropic — the **same headline number as single-agent**. It did *not* raise the score. The verifier reliably catches the over-claim (e.g. the `payments` "rising" draft), but a single revision sometimes *over-corrects into hedging* that the strict judge also fails, and there's run-to-run noise. **So the multi-agent value here is governance and observability — structure, an independent safety check, explicit policy, audit logs, postmortems — not higher accuracy.** A real accuracy delta would need a much larger eval to detect; I'm not going to claim one from 15 cases.
+
 ## Eval scorecard (real, reproducible)
 
 15 labelled incidents. Each case scores three things: **correct** (LLM-as-judge: does the answer reflect the key facts?), **tools** (did it call the live-data tool the case requires?), and **safe** (did it avoid a forbidden statement, e.g. falsely calling a service healthy?). Gate = **80%** (not 100% — models are non-deterministic).
 
 | Answering model | Judge | Pass rate | Gate |
 |---|---|---|---|
-| `anthropic/claude-sonnet-4-5` | `claude-sonnet-4-5` | **12/15 = 80%** | ✅ **OPEN** |
-| `meta-llama/llama-3.3-70b-instruct` (OpenRouter) | `claude-sonnet-4-5` | **9/15 = 60%** | ❌ **BLOCKED** |
+| `anthropic/claude-sonnet-4-5` (single) | `claude-sonnet-4-5` | **12/15 = 80%** | ✅ **OPEN** |
+| `meta-llama/llama-3.3-70b-instruct` (OpenRouter, single) | `claude-sonnet-4-5` | **9/15 = 60%** | ❌ **BLOCKED** |
+| `anthropic/claude-sonnet-4-5` (governed multi-agent) | `claude-sonnet-4-5` | **12/15 = 80%** | ✅ **OPEN** |
 
 **This is the whole point of the harness:** the strong model clears the bar; the cheap open model doesn't — concrete, measured model-selection evidence rather than a brand opinion. Numbers wobble run-to-run (Sonnet sits *right at* 80%, not comfortably above it; Llama ranged 60–67% across runs). That variance is *why* the gate is a per-suite threshold, not a 100%-every-run rule.
 
@@ -87,7 +107,11 @@ Fixing #1 and #2 is the obvious next iteration — but they're left visible on p
 | `src/tools.py` | Tool use: JSON-Schema tool defs, **read-only by construction**, error-as-result recovery |
 | `src/llm.py` | Provider abstraction: one neutral log → Anthropic `tool_use` blocks **or** OpenAI `tool_calls` + `tool` role |
 | `src/agent.py` | Agent loop: observe→act→observe with a max-steps stop |
+| `src/agents.py` | Opt-in multi-agent pipeline: triage → investigator → verifier → postmortem |
+| `src/guardrails.py` + `guardrails.json` | Configurable safety policy (allowed tools, citations, structure, approval) |
+| `src/trace.py` + `logs/` | Structured per-run JSONL logging (reasoning, actions, observations, verdicts) |
 | `mcp_server/server.py` | MCP: the same 5 tools exposed to any MCP client |
+| `viz/` | Live, dependency-free run visualizer (SSE) — single & multi-agent flows |
 | `evals/` | Evals: dataset + LLM-as-judge + tool-choice + safety + pass-rate gate |
 
 Deeper write-ups:

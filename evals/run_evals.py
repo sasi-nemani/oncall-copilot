@@ -1,7 +1,7 @@
 import json
 import os
 import re
-from src import llm, agent, tools, config
+from src import llm, agent, agents, tools, config
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 client = llm.get_client()              # the system under test (answers questions)
@@ -42,7 +42,10 @@ def run():
         called = []
         orig = tools.run_tool
         tools.run_tool = lambda n, a: called.append(n) or orig(n, a)
-        ans = agent.answer(row["question"], client)
+        if config.ONCALL_MODE == "multi":           # triage->investigate->verify->revise
+            ans = agents.run(row["question"], client, make_postmortem=False)["answer"]
+        else:
+            ans = agent.answer(row["question"], client)
         tools.run_tool = orig
 
         correct = judge(ans, row["key_facts"])
@@ -56,7 +59,8 @@ def run():
               f"correct={correct} tools={tools_ok} safe={safe}")
 
     rate = passed / len(rows)
-    print(f"\nAnswering: provider={config.PROVIDER}  |  Judge: {config.JUDGE_PROVIDER}/{config.JUDGE_MODEL}")
+    print(f"\nAnswering: provider={config.PROVIDER} mode={config.ONCALL_MODE}  |  "
+          f"Judge: {config.JUDGE_PROVIDER}/{config.JUDGE_MODEL}")
     print(f"Pass rate: {passed}/{len(rows)} = {rate:.0%}")
     # Ship gate: a per-suite threshold, NOT 100%-every-run (models are non-deterministic).
     print("GATE:", "OPEN" if rate >= 0.8 else "BLOCKED (fix before shipping)")

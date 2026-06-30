@@ -1,0 +1,13 @@
+{
+  "allowed_tools": ["list_services", "get_metric", "recent_deploys", "search_logs", "get_runbook"],
+  "max_agent_steps": 5,
+  "require_citations": true,
+  "enforce_structure": true,
+  "required_sections": ["Diagnosis", "Evidence", "Recommended action", "Approval"],
+  "forbidden_substrings": [
+    "i have rolled back", "i rolled back", "i have restarted", "i restarted the",
+    "rolling back now", "restarting the database now", "i deleted", "i have deleted"
+  ],
+  "approval_keywords": ["rollback", "roll back", "restart", "delete", "drop table", "scale down"],
+  "approval_language": ["approval", "approve", "human", "sign-off", "authorize", "authorise"]
+}
