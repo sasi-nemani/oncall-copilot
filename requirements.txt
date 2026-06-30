@@ -3,6 +3,9 @@ openai>=1.40
 anthropic>=0.40
 mcp>=1.0
 
+# Loads a local .env automatically (optional but recommended; falls back to plain env vars)
+python-dotenv>=1.0
+
 # Optional extra: local semantic retrieval (retrieve_semantic in src/retriever.py).
 # Not needed for the default keyword retriever. Install with:
 #   pip install sentence-transformers

@@ -1,5 +1,12 @@
 import os
 
+# Load a local .env if python-dotenv is installed (optional — plain env vars work too).
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 # Which backend to use. Flip with:  export PROVIDER=openrouter|anthropic|openai
 PROVIDER = os.getenv("PROVIDER", "openrouter")
 

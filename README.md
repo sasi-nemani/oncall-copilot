@@ -38,6 +38,7 @@ A tiny, provider-agnostic AI assistant for on-call engineers. Ask it *"checkout 
 
 ```bash
 pip install -r requirements.txt
+cp .env.example .env            # then fill in ONE key (or just export the vars below)
 
 # Pick a provider (OpenRouter needs no Claude/OpenAI subscription).
 # The AGENT needs a tool-capable model; pure RAG/eval works on any model.
