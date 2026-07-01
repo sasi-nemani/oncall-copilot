@@ -1,6 +1,6 @@
 # On-Call Copilot
 
-A tiny, provider-agnostic AI assistant for on-call engineers. Ask it *"checkout is throwing 5xx, what do I do?"* and it retrieves the relevant runbook (RAG), investigates with read-only tools (live metrics, deploys, logs) in a model-driven agent loop, and returns a **cited, grounded** answer — proposing fixes like a rollback but never executing them. The same app runs on **OpenRouter, Anthropic, or OpenAI** by flipping one env var, and ships with an **eval harness** that scores correctness, tool-choice, and safety behind a pass-rate gate.
+A tiny, provider-agnostic AI assistant for on-call engineers. Ask it *"checkout is throwing 5xx, what do I do?"* and it retrieves the relevant runbook (RAG), investigates with read-only tools (live metrics, deploys, logs) in a model-driven agent loop, and returns a **cited, grounded** answer — proposing fixes like a rollback but never executing them. The same app runs on **OpenRouter, Anthropic, OpenAI, or Gemini** by flipping one env var, and ships with an **eval harness** that scores correctness, tool-choice, and safety behind a pass-rate gate.
 
 >  **Note:** this is a **personal learning project built on mock data (in process of being extended to a real use case for Ops)** (`data/` and `docs/` are made-up). It demonstrates the patterns — RAG, tool use, agent loop, MCP, evals, provider abstraction — not a production system. The eval numbers below are **real outputs from this repo**, including the cases it *fails*.
 
@@ -50,7 +50,7 @@ python -m evals.run_evals     # scorecard + ship gate over 15 labelled incidents
 python mcp_server/server.py   # expose the 5 tools over MCP (stdio)
 python -m viz.server          # live visualizer → open http://localhost:8000
 
-# swap the brain any time:  export PROVIDER=anthropic | openai | openrouter
+# swap the brain any time:  export PROVIDER=anthropic | openai | openrouter | gemini
 ```
 
 The **judge/verifier** runs on a *different* model than the answerer so it isn't grading its own work. The default is **all-OpenRouter** (answer with `llama-3.3-70b`, judge with `gemma`) — one key, no Anthropic/OpenAI needed. Override with `JUDGE_PROVIDER` / `JUDGE_MODEL`.
@@ -61,8 +61,8 @@ Everything is env-driven; nothing hardcodes a vendor. Sensible defaults mean the
 
 | Variable | Default | What it does |
 |---|---|---|
-| `PROVIDER` | `openrouter` | Answering backend: `openrouter` \| `anthropic` \| `openai`. |
-| `OPENROUTER_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | — | Key for the chosen provider. |
+| `PROVIDER` | `openrouter` | Answering backend: `openrouter` \| `anthropic` \| `openai` \| `gemini`. |
+| `OPENROUTER_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` | — | Key for the chosen provider(s). |
 | `OPENROUTER_MODEL` | `meta-llama/llama-3.3-70b-instruct` | Answering model on OpenRouter (needs tool support for the agent). |
 | `ANTHROPIC_MODEL` / `OPENAI_MODEL` | `claude-sonnet-4-5` / `gpt-4o` | Answering model for those providers. |
 | `JUDGE_PROVIDER` / `JUDGE_MODEL` | `openrouter` / `google/gemma-4-31b-it:free` | Global fallback for the judge/verifier roles (overridden by `models.json` / `MODEL_JUDGE`). |
@@ -95,7 +95,7 @@ export MODEL_VERIFIER="qwen/qwen3-coder:free"
 export MODEL_JUDGE="openai/gpt-4o-mini"     # a few cents; reliable in the 15x eval loop
 ```
 
-> **OpenRouter free-tier reality (measured):** the free tier is **50 requests/day** (then `429: free-models-per-day`; add \$10 credits → 1000/day). Fine for single interactive runs; a full 15-case eval on a `:free` judge will exhaust it. The multi-agent pipeline **degrades gracefully** if a role's model is unavailable — triage falls back to "incident", verification is skipped with a logged note, postmortem is skipped — rather than crashing. Validate model ids at [openrouter.ai/models](https://openrouter.ai/models).
+> **OpenRouter free-tier reality (measured):** the free tier is **50 requests/day** (then `429: free-models-per-day`; add \$10 credits → 1000/day). Fine for single interactive runs; a full 15-case eval on a `:free` judge will exhaust it. **Tip:** route the judge/verifier to **Gemini** (`PROVIDER_JUDGE=gemini`, `MODEL_JUDGE=gemini-flash-latest`, with `GEMINI_API_KEY`) — a more generous free tier, tool-capable, and independent of the OpenRouter answerer. The multi-agent pipeline **degrades gracefully** if a role's model is unavailable — triage falls back to "incident", verification is skipped with a logged note, postmortem is skipped — rather than crashing. Validate model ids at [openrouter.ai/models](https://openrouter.ai/models).
 
 ### Watch a run, live
 
@@ -163,7 +163,7 @@ The `large` case isolates what embeddings buy: its words share *nothing* with th
 | `src/retriever.py` | RAG: section chunking, keyword / semantic / **hybrid** (RRF) retrieval, citations, refuse-on-empty-context |
 | `evals/retrieval_compare.py` + `evals/retrieval_cases.jsonl` | Direct retrieval eval (recall@k): keyword vs hybrid on 3 cases |
 | `src/tools.py` | Tool use: JSON-Schema tool defs, **read-only by construction**, error-as-result recovery |
-| `src/llm.py` | Provider abstraction: one neutral log → Anthropic `tool_use` blocks **or** OpenAI `tool_calls` + `tool` role |
+| `src/llm.py` | Provider abstraction: one neutral log → Anthropic `tool_use` blocks **or** OpenAI-shaped `tool_calls` (OpenAI, OpenRouter, Gemini) |
 | `src/agent.py` | Agent loop: observe→act→observe with a max-steps stop |
 | `src/agents.py` | Opt-in multi-agent pipeline: triage → investigator → verifier → postmortem |
 | `src/guardrails.py` + `guardrails.json` | Configurable safety policy (allowed tools, citations, structure, approval) |

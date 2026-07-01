@@ -109,12 +109,28 @@ class OpenRouterClient(OpenAIClient):
         self.model = config.OPENROUTER_MODEL
 
 
+class GeminiClient(OpenAIClient):
+    """Google Gemini via its OpenAI-compatible endpoint (same SDK, different base_url + key).
+
+    Supports tool calling, so any role (incl. the investigator) can use it. Its free tier is
+    more generous than OpenRouter's 50/day, which makes it a good home for the judge/verifier.
+    """
+    def __init__(self):
+        from openai import OpenAI
+        self.c = OpenAI(base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                        api_key=os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"),
+                        max_retries=3)
+        self.model = config.GEMINI_MODEL
+
+
 def get_client(provider=None, model=None):
     provider = provider or config.PROVIDER
     if provider == "anthropic":
         client = AnthropicClient()
     elif provider == "openrouter":
         client = OpenRouterClient()
+    elif provider in ("gemini", "google"):
+        client = GeminiClient()
     else:
         client = OpenAIClient()
     if model:                      # optional override (used to pin the eval judge)

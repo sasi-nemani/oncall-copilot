@@ -7,12 +7,15 @@ try:
 except ImportError:
     pass
 
-# Which backend to use. Flip with:  export PROVIDER=openrouter|anthropic|openai
+# Which backend to use. Flip with:  export PROVIDER=openrouter|anthropic|openai|gemini
 PROVIDER = os.getenv("PROVIDER", "openrouter")
 
 # Use CURRENT model ids you have access to.
 ANTHROPIC_MODEL  = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5")
 OPENAI_MODEL     = os.getenv("OPENAI_MODEL", "gpt-4o")
+# Gemini via Google's OpenAI-compatible endpoint (needs GEMINI_API_KEY). Tool-capable;
+# more generous free tier than OpenRouter — handy for the judge/verifier roles.
+GEMINI_MODEL     = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
 # OpenRouter: pick from openrouter.ai/models. For the AGENT/tools you need a model
 # that supports tool calling (look for the "Tools" badge). For pure RAG/eval any model works.
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct")

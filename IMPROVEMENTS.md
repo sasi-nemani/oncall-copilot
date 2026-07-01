@@ -16,6 +16,7 @@ Each entry is **What → Why → Result / what I learned.** Dates and commit has
 | 2026-07-01 | Retrieval: section chunking + hybrid embeddings (87% → 100%*) | _(open thread #2)_ |
 | 2026-07-01 | Cost: default everything to OpenRouter models + eval resilience | _(config/robustness)_ |
 | 2026-07-01 | Per-role model config (route each agent to its own model) | _(architecture)_ |
+| 2026-07-01 | Add Gemini provider (OpenAI-compat); route judge/verifier to it | _(provider)_ |
 
 ---
 
@@ -168,6 +169,15 @@ The `large` case is the honest isolation of the embeddings win: "datastore/crawl
   2. OpenRouter's free tier is **50 requests/day** (`X-RateLimit-Limit: 50`), not just a per-minute burst — a day of testing exhausted it, which is why `:free` judges `429` in the eval loop. Add \$10 credits → 1000/day.
 - **Robustness:** because free-tier models fail, the pipeline now **degrades gracefully** — a role's `429` no longer crashes the run (triage → "incident", verify skipped-with-note, postmortem skipped). Verified live: triage on the exhausted free model emitted a note and the run still produced a final answer.
 - **What I learned:** "which model?" shouldn't be one global switch — it's a per-role routing decision, and making it config surfaces the real trade-offs (tool-capability, independence, rate limits, cost) instead of hiding them.
+
+---
+
+## 2026-07-01 · Added Gemini as a provider (and a home for the judge/verifier)
+
+- **What:** a `GeminiClient` (`src/llm.py`) using Google's **OpenAI-compatible** endpoint (`.../v1beta/openai/`) — same subclass-`OpenAIClient` trick as `OpenRouterClient`, so all the existing tool-calling translation is reused. New provider `gemini` in `get_client()`, `GEMINI_MODEL` config (default `gemini-flash-latest`), `GEMINI_API_KEY`.
+- **Why:** OpenRouter's free tier is 50 req/day and kept stalling the eval judge/verifier. Gemini's free tier is more generous and (verified) supports **tool calling**, so it works for any role. With per-role config it's a two-line route: `PROVIDER_JUDGE=gemini` / `MODEL_JUDGE=gemini-flash-latest`, keeping the investigator on OpenRouter so verifier(gemini) ≠ investigator(llama) → still independent.
+- **Verified:** basic completion + tool calling through the compat endpoint; our `GeminiClient` returns clean output; a real `verify()` call via Gemini returned the correct `grounded/safe/pass` verdict with `independent=true`.
+- **Security note:** the key lives only in the **gitignored `.env`** — never a tracked file (staged diff scanned for the key prefix before commit).
 
 ---
 

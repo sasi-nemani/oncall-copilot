@@ -13,6 +13,7 @@
     "reasoning_for_verifier_or_judge": ["deepseek/deepseek-r1:free", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"],
     "chat_for_postmortem": ["deepseek/deepseek-chat-v3-0324:free", "nousresearch/hermes-3-llama-3.1-70b:free"],
     "fast_for_triage": ["google/gemma-3-27b-it:free", "google/gemma-4-31b-it:free"],
-    "paid_reliable_for_judge_in_eval_loop": ["openai/gpt-4o-mini", "google/gemini-2.0-flash-001"]
+    "paid_reliable_for_judge_in_eval_loop": ["openai/gpt-4o-mini", "google/gemini-2.0-flash-001"],
+    "gemini_native_needs_GEMINI_API_KEY": ["set PROVIDER_JUDGE=gemini and MODEL_JUDGE=gemini-flash-latest (generous free tier, tool-capable)"]
   }
 }
