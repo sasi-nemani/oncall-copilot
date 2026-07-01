@@ -112,8 +112,8 @@ class OpenRouterClient(OpenAIClient):
 class GeminiClient(OpenAIClient):
     """Google Gemini via its OpenAI-compatible endpoint (same SDK, different base_url + key).
 
-    Supports tool calling, so any role (incl. the investigator) can use it. Its free tier is
-    more generous than OpenRouter's 50/day, which makes it a good home for the judge/verifier.
+    Supports tool calling, so any role (incl. the investigator) can use it. Its free tier holds
+    up better under load than OpenRouter's, which makes it a good home for the judge/verifier.
     """
     def __init__(self):
         from openai import OpenAI
