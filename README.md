@@ -4,6 +4,8 @@ A tiny, provider-agnostic AI assistant for on-call engineers. Ask it *"checkout 
 
 >  **Note:** this is a **personal learning project built on mock data (in process of being extended to a real use case for Ops)** (`data/` and `docs/` are made-up). It demonstrates the patterns — RAG, tool use, agent loop, MCP, evals, provider abstraction — not a production system. The eval numbers below are **real outputs from this repo**, including the cases it *fails*.
 
+I approach this the way I'd approach a production system: don't trust an answer you can't check. So every reply is grounded in a retrieved runbook or a live tool result (and cited), the tools are read-only by construction so a wrong answer can't do damage, and an eval harness measures whether it actually behaves — the cases it still fails included.
+
 ## Architecture
 
 ```
@@ -17,11 +19,11 @@ A tiny, provider-agnostic AI assistant for on-call engineers. Ask it *"checkout 
                                  │                           │
                     ┌────────────▼───────────┐   ┌───────────▼───────────────┐
                     │ tools.py (READ-ONLY)   │   │ llm.py  (one interface,    │
-                    │  list_services         │   │          three backends)   │
+                    │  list_services         │   │          many providers)   │
                     │  get_metric            │   │   ┌─────────────────────┐  │
                     │  recent_deploys        │   │   │ OpenRouter (default)│  │
-                    │  search_logs           │   │   │ Anthropic           │  │
-                    │  get_runbook           │   │   │ OpenAI              │  │
+                    │  search_logs           │   │   │ Anthropic · OpenAI  │  │
+                    │  get_runbook           │   │   │ Gemini              │  │
                     └────────────┬───────────┘   │   └─────────────────────┘  │
                                  │               └────────────────────────────┘
                     reads mock   ▼
@@ -74,7 +76,7 @@ Everything is env-driven; nothing hardcodes a vendor. Sensible defaults mean the
 | `VIZ_PORT` | `8000` | Port for the live visualizer. |
 
 **Judge/verifier independence (important):** to avoid a model grading its own work, the judge is a *different* model than the answerer. The default is **all-OpenRouter** — answer with `llama-3.3-70b`, judge with `gemma` — so you need **one OpenRouter key and nothing else** (no Anthropic/OpenAI, no extra cost).
-  > **On `:free` models:** they throttle under load, so a full eval can stall on a free judge (the client retries, but it's flaky). A small judge also grades a little more strictly than a frontier one — a real cost/quality trade-off. When we want a steadier judge we point `JUDGE_MODEL` at a stronger model. (In testing, `gemma-4-31b-it:free` answered cleanly; `qwen3-next-80b:free` was throttled.)
+  > **On `:free` models:** they throttle under load, so a full eval can stall on a free judge (the client retries, but it's flaky). A small judge also grades a little more strictly than a frontier one — a real cost/quality trade-off. When I want a steadier judge I point `JUDGE_MODEL` at a stronger model. (In testing, `gemma-4-31b-it:free` answered cleanly; `qwen3-next-80b:free` was throttled.)
 - If the judge client can't be built (e.g. no key for its provider), the verifier **falls back to the answering model and reports that independence was lost** — shown on the verifier card in the visualizer and in the run log, never hidden.
 
 ### Per-role models
@@ -95,7 +97,7 @@ export MODEL_VERIFIER="qwen/qwen3-coder:free"
 export MODEL_JUDGE="openai/gpt-4o-mini"     # a few cents; reliable in the 15x eval loop
 ```
 
-> **On free tiers (learned the hard way):** free models throttle aggressively — fine for a single run or a demo, but a full 15-case eval fires enough calls to hit the wall and stall on a `:free` judge. Rather than fight the limit, we route the judge/verifier to **Gemini** (`PROVIDER_JUDGE=gemini`, `MODEL_JUDGE=gemini-flash-latest`) — a steadier free option that's tool-capable and independent of the OpenRouter answerer. And the pipeline **degrades gracefully** when a role's model is unavailable: triage falls back to "incident", verification and postmortem are skipped with a note, instead of crashing the run.
+> **On free tiers (learned the hard way):** free models throttle aggressively — fine for a single run or a demo, but a full 15-case eval fires enough calls to hit the wall and stall on a `:free` judge. Rather than fight the limit, I route the judge/verifier to **Gemini** (`PROVIDER_JUDGE=gemini`, `MODEL_JUDGE=gemini-flash-latest`) — a steadier free option that's tool-capable and independent of the OpenRouter answerer. And the pipeline **degrades gracefully** when a role's model is unavailable: triage falls back to "incident", verification and postmortem are skipped with a note, instead of crashing the run.
 
 ### Watch a run, live
 
@@ -113,7 +115,7 @@ triage (router) → investigator (the single agent) → verifier (independent) �
 - **Verifier** — an **actor→critic** guardrail run by an *independent* model (`JUDGE_PROVIDER`/`JUDGE_MODEL`, by default a different model than the answerer — see [Configuration](#configuration-environment-variables) for the single-key setup), checking the draft is grounded in the gathered evidence and breaks no safety rule. Can send it back for **one revision**. If no independent judge is available it falls back to the answering model and says so, rather than pretending to be independent.
 - **Postmortem** — synthesizes a blameless incident report from the trajectory.
 
-On top of that, the governed path adds three production-shaped controls:
+On top of that, the governed path adds three controls you'd actually want in production:
 - **Forced response structure** — answers must carry labelled sections (`Diagnosis / Evidence / Recommended action / Approval`); missing structure triggers a revision.
 - **Configurable guardrails** — policy lives in [`guardrails.json`](./guardrails.json) (allowed tools, required citations, required sections, forbidden "I-did-a-destructive-thing" phrases, approval-language requirement). `src/guardrails.py` checks every answer and forces a revision on any violation.
 - **Full run logging** — every run (single *or* multi) writes a JSONL trace to `logs/run-<id>.jsonl`: reasoning, each action + observation, verifier verdict, guardrail result, final answer. Observability for the agent itself.
@@ -131,7 +133,7 @@ On top of that, the governed path adds three production-shaped controls:
 | `anthropic/claude-sonnet-4-5` (governed multi-agent) | `claude-sonnet-4-5` | **12/15 = 80%** † | ✅ **OPEN** |
 | `meta-llama/llama-3.3-70b-instruct` (OpenRouter) | `gemini-flash-latest` | **3/15 = 20%** ✦ | ❌ **BLOCKED** |
 
-✦ **All-free/cheap stack, measured 2026-07-01 — the honest failure case.** Two separate causes: (1) **6 of 15 cases couldn't be judged** — the free judge got throttled mid-run (the runner retries, then marks `[ERR]` rather than crashing) — so it's really **3 passed / 6 failed / 6 unjudged**, ~33% of the cases we could score. (2) **The judge is a variable:** the same llama answerer scored ~60–67% under the Sonnet judge but ~33% under the stricter Gemini judge — *changing only the grader* swung the score. Underneath both, llama is far weaker than Sonnet as the *answerer*. Lesson: free tiers can't sustain a full eval, and you have to hold the judge fixed to compare answerers fairly.
+✦ **All-free/cheap stack, measured 2026-07-01 — the honest failure case.** Two separate causes: (1) **6 of 15 cases couldn't be judged** — the free judge got throttled mid-run (the runner retries, then marks `[ERR]` rather than crashing) — so it's really **3 passed / 6 failed / 6 unjudged**, ~33% of the cases I could actually score. (2) **The judge is a variable:** the same llama answerer scored ~60–67% under the Sonnet judge but ~33% under the stricter Gemini judge — *changing only the grader* swung the score. Underneath both, llama is far weaker than Sonnet as the *answerer*. Lesson: free tiers can't sustain a full eval, and you have to hold the judge fixed to compare answerers fairly.
 ‡ Reflects two fixes (see [`IMPROVEMENTS.md`](./IMPROVEMENTS.md)): [`get_metric` thresholds](./IMPROVEMENTS.md) (80%→87%) and [section chunking](./IMPROVEMENTS.md) (87%→this run). **Honest caveat:** this was a single run — the *durable* gain is the db-latency case flipping to PASS (chunking; provable deterministically via `python -m evals.retrieval_compare`); the run hit a clean 15/15 partly because the noisy `capital of France` refusal case also passed this time. Expect ~14/15 typically, not a reliable 100%.
 † The OpenRouter and multi-agent rows were measured *before* these fixes and haven't been re-run yet.
 
