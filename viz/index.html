@@ -182,10 +182,12 @@ function handle(ev){
     case "triage":
       setStep("triage","done"); setStep("investigator","active");
       railNode("agent","Triage", ev.route);
-      card("agent", "🧭 Triage agent → route: "+ev.route, "router", ev.reason); break;
+      card("agent", "🧭 Triage agent → route: "+ev.route, "router · "+(ev.model||"?"), ev.reason); break;
     case "draft_answer":
       setStep("investigator","done"); setStep("verifier","active");
       card("", "📝 Draft answer (pre-verification)", "from investigator", ev.text); break;
+    case "note":
+      card("", "⚠️ "+esc(ev.stage||"note"), "degraded", ev.message); break;
     case "verifier_info":
       window._vinfo = ev; break;
     case "verify":{
@@ -222,7 +224,7 @@ function handle(ev){
       railNode("agent","Postmortem","report");
       const box = document.createElement("div");
       box.className = "answerbox"; box.style.borderColor = "var(--agent)";
-      box.innerHTML = `<div class="ttl" style="color:var(--agent)">🧾 Postmortem agent — incident report</div>`
+      box.innerHTML = `<div class="ttl" style="color:var(--agent)">🧾 Postmortem agent — incident report <span class="tag">${esc(ev.model||"?")}</span></div>`
         + `<div class="body">${mdBold(ev.report)}</div>`;
       tl.appendChild(box); break; }
     case "start":

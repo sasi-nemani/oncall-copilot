@@ -14,6 +14,8 @@ Each entry is **What → Why → Result / what I learned.** Dates and commit has
 | 2026-06-30 | One-command setup (`.env.example` + dotenv) | `7b6783f` |
 | 2026-06-30 | Tuning: `get_metric` thresholds (80% → 87%) | _(open thread #1)_ |
 | 2026-07-01 | Retrieval: section chunking + hybrid embeddings (87% → 100%*) | _(open thread #2)_ |
+| 2026-07-01 | Cost: default everything to OpenRouter models + eval resilience | _(config/robustness)_ |
+| 2026-07-01 | Per-role model config (route each agent to its own model) | _(architecture)_ |
 
 ---
 
@@ -154,6 +156,18 @@ Thread #2. I set out to add embeddings to fix the `how do I handle high database
 The `large` case is the honest isolation of the embeddings win: "datastore/crawling/speed up" share **no words** with the db-latency runbook, so keyword is blind to it; embeddings match by meaning.
 
 **Before → after — full agent eval** (Anthropic, single-agent): **13/15 (87%) → 15/15 (100%)** this run, gate OPEN. Honest attribution: the **durable** gain is the db-latency case flipping to PASS (chunking; provable at the retrieval level above). The run hit a clean 15/15 partly because the noisy `capital of France` refusal case also passed this time — that one wobbles, so I'd expect ~14/15 typically, not a reliable 100%. **What I learned:** before reaching for a fancier retrieval method, check your chunk boundaries — coherent chunks were a bigger lever than embeddings here; embeddings earn their keep specifically on synonym/paraphrase queries.
+
+---
+
+## 2026-07-01 · Per-role model config — route each agent to its own model
+
+- **What:** every role — `investigator` (answers, needs tools), `triage`, `verifier`, `postmortem`, `judge` — now resolves its model from config: env `MODEL_<ROLE>` → [`models.json`](./models.json) → global fallback (`src/models.py`, mirroring the `guardrails.py` pattern). New `llm.get_role_client(role)`; the multi-agent pipeline builds a client per role; the visualizer's provider dropdown is now an explicit investigator override.
+- **Why:** the right multi-agent shape is "right model per task" — cheap/fast for triage, a reasoning model for the verifier, tool-capable for the investigator. It also makes **verifier independence** a *configured* property (verifier model ≠ investigator model), and it cleanly separates the *verifier* (one call/run, free is fine) from the *eval judge* (15× loop, wants a steadier model) — the exact tension that was stalling evals.
+- **Two honest findings that shaped it:**
+  1. The suggested free-model IDs (`gemma-3-27b-it:free`, `deepseek-r1:free`, `deepseek-chat-v3-0324:free`) **404'd** against OpenRouter's live catalog — so defaults use only *verified* models; the rest ship as `_examples` to validate.
+  2. OpenRouter's free tier is **50 requests/day** (`X-RateLimit-Limit: 50`), not just a per-minute burst — a day of testing exhausted it, which is why `:free` judges `429` in the eval loop. Add \$10 credits → 1000/day.
+- **Robustness:** because free-tier models fail, the pipeline now **degrades gracefully** — a role's `429` no longer crashes the run (triage → "incident", verify skipped-with-note, postmortem skipped). Verified live: triage on the exhausted free model emitted a note and the run still produced a final answer.
+- **What I learned:** "which model?" shouldn't be one global switch — it's a per-role routing decision, and making it config surfaces the real trade-offs (tool-capability, independence, rate limits, cost) instead of hiding them.
 
 ---
 

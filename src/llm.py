@@ -122,6 +122,14 @@ def get_client(provider=None, model=None):
     return client
 
 
+def get_role_client(role):
+    # Build the client for an agent role (investigator/triage/verifier/postmortem/judge),
+    # using its per-role model from src/models.py (env / models.json / global fallback).
+    from src import models
+    provider, model = models.resolve(role)
+    return get_client(provider, model)
+
+
 def get_judge_client():
-    # A strong, fixed judge — ideally a different provider than the answerer.
-    return get_client(config.JUDGE_PROVIDER, config.JUDGE_MODEL)
+    # Back-compat alias — the eval judge is just the "judge" role.
+    return get_role_client("judge")

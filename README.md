@@ -53,7 +53,7 @@ python -m viz.server          # live visualizer → open http://localhost:8000
 # swap the brain any time:  export PROVIDER=anthropic | openai | openrouter
 ```
 
-The **judge/verifier** is pinned to a strong, fixed model (default `anthropic/claude-sonnet-4-5`) so it isn't grading its own work and the score is stable run-to-run. Override with `JUDGE_PROVIDER` / `JUDGE_MODEL`.
+The **judge/verifier** runs on a *different* model than the answerer so it isn't grading its own work. The default is **all-OpenRouter** (answer with `llama-3.3-70b`, judge with `gemma`) — one key, no Anthropic/OpenAI needed. Override with `JUDGE_PROVIDER` / `JUDGE_MODEL`.
 
 ### Configuration (environment variables)
 
@@ -65,24 +65,37 @@ Everything is env-driven; nothing hardcodes a vendor. Sensible defaults mean the
 | `OPENROUTER_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | — | Key for the chosen provider. |
 | `OPENROUTER_MODEL` | `meta-llama/llama-3.3-70b-instruct` | Answering model on OpenRouter (needs tool support for the agent). |
 | `ANTHROPIC_MODEL` / `OPENAI_MODEL` | `claude-sonnet-4-5` / `gpt-4o` | Answering model for those providers. |
-| `JUDGE_PROVIDER` / `JUDGE_MODEL` | `anthropic` / `claude-sonnet-4-5` | The independent judge (evals) and verifier (multi-agent). See note below. |
+| `JUDGE_PROVIDER` / `JUDGE_MODEL` | `openrouter` / `google/gemma-4-31b-it:free` | Global fallback for the judge/verifier roles (overridden by `models.json` / `MODEL_JUDGE`). |
+| `MODEL_<ROLE>` / `PROVIDER_<ROLE>` | from `models.json` | Per-role model override — `ROLE` ∈ `INVESTIGATOR·TRIAGE·VERIFIER·POSTMORTEM·JUDGE`. See "Per-role models" below. |
 | `ONCALL_MODE` | `single` | `single` = one investigator agent; `multi` = governed pipeline (triage→investigate→verify→postmortem). |
 | `RETRIEVAL_MODE` | `keyword` | `keyword` (zero-dep) \| `semantic` \| `hybrid` (keyword + local embeddings; needs `sentence-transformers`, falls back to keyword if absent). |
 | `GUARDRAILS_FILE` | `guardrails.json` | Path to the guardrail policy. |
 | `ONCALL_LOG_DIR` | `logs/` | Where per-run JSONL traces are written. |
 | `VIZ_PORT` | `8000` | Port for the live visualizer. |
 
-**Judge/verifier independence (important):** to avoid a model grading its own work, the judge should be a *different* model than the answerer.
-- Answering on OpenRouter/OpenAI with the **default Anthropic judge** → already independent.
-- **Single key (OpenRouter only)?** Point the judge at a *different* OpenRouter model:
-  ```bash
-  export PROVIDER=openrouter
-  export OPENROUTER_MODEL="meta-llama/llama-3.3-70b-instruct"
-  export JUDGE_PROVIDER=openrouter
-  export JUDGE_MODEL="google/gemma-4-31b-it:free"   # ≠ OPENROUTER_MODEL (verified working)
-  ```
-  > **Heads-up on `:free` models:** OpenRouter's free tier is heavily rate-limited and returns `429`s under load — fine for a demo or a few calls, flaky for a full 15-case eval. The OpenRouter client retries `429`s automatically; for reliable eval runs, add OpenRouter credits or use a paid model. (Tested: `google/gemma-4-31b-it:free` responded cleanly; `qwen/qwen3-next-80b-a3b-instruct:free` was rate-limited at test time.)
-- If the judge client can't be built (e.g. no key for its provider), the verifier **falls back to the answering model and reports that independence was lost** — shown on the verifier card in the visualizer and in the run log, never hidden. (Answering *and* judging with the same model — e.g. Anthropic for both — is flagged the same way.)
+**Judge/verifier independence (important):** to avoid a model grading its own work, the judge is a *different* model than the answerer. The default is **all-OpenRouter** — answer with `llama-3.3-70b`, judge with `gemma` — so you need **one OpenRouter key and nothing else** (no Anthropic/OpenAI, no extra cost).
+  > **Heads-up on `:free` models:** OpenRouter's free tier is rate-limited and returns `429`s under load — fine for a demo, flaky/slow for a full 15-case eval. The client retries `429`s automatically. A small judge is also a bit noisier/stricter than a frontier one — an honest cost/quality trade-off. For a steadier judge, add credits and use a paid `JUDGE_MODEL` (or set `JUDGE_PROVIDER=anthropic` if you have that key). (Tested: `google/gemma-4-31b-it:free` responded cleanly; `qwen/qwen3-next-80b-a3b-instruct:free` was rate-limited at test time.)
+- If the judge client can't be built (e.g. no key for its provider), the verifier **falls back to the answering model and reports that independence was lost** — shown on the verifier card in the visualizer and in the run log, never hidden.
+
+### Per-role models
+
+Every agent role can run on its own model — route a cheap/fast model to triage, a reasoning model to the verifier, a writer to the postmortem, and a tool-capable one to the investigator. Defaults live in [`models.json`](./models.json); override any role with `MODEL_<ROLE>` (and optional `PROVIDER_<ROLE>`). Resolution order: env → `models.json` → global fallback (so with neither set, behaviour is unchanged).
+
+| Role | Default | Notes |
+|---|---|---|
+| `investigator` | `meta-llama/llama-3.3-70b-instruct` | Answers; **must be tool-capable**. |
+| `triage` | `google/gemma-4-31b-it:free` | Cheap classifier; one call per run. |
+| `verifier` | `google/gemma-4-31b-it:free` | ≠ investigator → independent check. |
+| `postmortem` | `meta-llama/llama-3.3-70b-instruct` | Writes the incident summary. |
+| `judge` | `google/gemma-4-31b-it:free` | Eval grader; runs in a tight loop. |
+
+```bash
+# e.g. give the verifier a different model, and use a steadier judge for the eval loop:
+export MODEL_VERIFIER="qwen/qwen3-coder:free"
+export MODEL_JUDGE="openai/gpt-4o-mini"     # a few cents; reliable in the 15x eval loop
+```
+
+> **OpenRouter free-tier reality (measured):** the free tier is **50 requests/day** (then `429: free-models-per-day`; add \$10 credits → 1000/day). Fine for single interactive runs; a full 15-case eval on a `:free` judge will exhaust it. The multi-agent pipeline **degrades gracefully** if a role's model is unavailable — triage falls back to "incident", verification is skipped with a logged note, postmortem is skipped — rather than crashing. Validate model ids at [openrouter.ai/models](https://openrouter.ai/models).
 
 ### Watch a run, live
 
@@ -154,6 +167,7 @@ The `large` case isolates what embeddings buy: its words share *nothing* with th
 | `src/agent.py` | Agent loop: observe→act→observe with a max-steps stop |
 | `src/agents.py` | Opt-in multi-agent pipeline: triage → investigator → verifier → postmortem |
 | `src/guardrails.py` + `guardrails.json` | Configurable safety policy (allowed tools, citations, structure, approval) |
+| `src/models.py` + `models.json` | Per-role model routing (investigator / triage / verifier / postmortem / judge) |
 | `src/trace.py` + `logs/` | Structured per-run JSONL logging (reasoning, actions, observations, verdicts) |
 | `mcp_server/server.py` | MCP: the same 5 tools exposed to any MCP client |
 | `viz/` | Live, dependency-free run visualizer (SSE) — single & multi-agent flows |

@@ -35,7 +35,8 @@ def triage(question, client, emit):
     m = re.search(r"ROUTE:\s*(incident|knowledge|out_of_scope)", r["text"], re.I)
     route = (m.group(1).lower() if m else "incident")     # default to investigating
     reason = r["text"].split("\n")[-1].strip()[:160]
-    emit({"type": "triage", "route": route, "reason": reason})
+    emit({"type": "triage", "route": route, "reason": reason,
+          "model": getattr(client, "model", "?")})
     return route
 
 
@@ -122,34 +123,42 @@ def postmortem(question, answer_text, trajectory, client, emit):
         "(note human approval) · **Severity** (cite the guide)."
     )
     r = client.complete([{"type": "user", "text": prompt}], system=POSTMORTEM_SYSTEM)
-    emit({"type": "postmortem", "report": r["text"]})
+    emit({"type": "postmortem", "report": r["text"], "model": getattr(client, "model", "?")})
     return r["text"]
 
 
 # ---------------------------------------------------------------- orchestrator
 def _verifier_client(answer_client):
-    # Prefer an INDEPENDENT model (different from the answerer) to avoid self-grading bias.
-    # Single-key setups work too: set JUDGE_PROVIDER=openrouter and a JUDGE_MODEL that is
-    # DIFFERENT from OPENROUTER_MODEL. If the judge client can't be built (e.g. no key for
-    # the judge provider), fall back to the answering model — independence is then LOST,
-    # which we surface in the UI and logs rather than hide.
+    # The "verifier" ROLE (src/models.py) — ideally a DIFFERENT model than the answerer, to
+    # avoid self-grading bias. If its client can't be built, fall back to the answering model —
+    # independence is then LOST, which we surface in the UI and logs rather than hide.
     try:
-        jc = llm.get_judge_client()
-        independent = getattr(jc, "model", None) != getattr(answer_client, "model", None)
-        return jc, independent
+        vc = llm.get_role_client("verifier")
+        independent = getattr(vc, "model", None) != getattr(answer_client, "model", None)
+        return vc, independent
     except Exception:
         return answer_client, False
 
 
-def run(question, client, on_event=None, make_postmortem=True):
+def run(question, client=None, on_event=None, make_postmortem=True):
+    # client is an optional INVESTIGATOR override (e.g. the visualizer's provider dropdown);
+    # when None, every role — including the investigator — comes from its per-role config.
+    client = client or llm.get_role_client("investigator")
+
     def emit(ev):
         if on_event:
             on_event(ev)
 
     emit({"type": "mode", "agents": ["triage", "investigator", "verifier", "postmortem"]})
 
-    # 1) Triage
-    route = triage(question, client, emit)
+    # 1) Triage (its own role model). If its model is unavailable (e.g. free-tier 429),
+    # degrade to "incident" (full investigation) rather than crashing the whole run.
+    try:
+        route = triage(question, llm.get_role_client("triage"), emit)
+    except Exception as e:
+        emit({"type": "note", "stage": "triage",
+              "message": f"triage model unavailable ({type(e).__name__}); defaulting to incident"})
+        route = "incident"
     if route == "out_of_scope":
         msg = ("That's outside what I can help with as your on-call copilot — "
                "I don't have enough information on that. Ask me about an incident or a runbook.")
@@ -175,7 +184,14 @@ def run(question, client, on_event=None, make_postmortem=True):
     vclient, independent = _verifier_client(client)
     emit({"type": "verifier_info", "model": getattr(vclient, "model", "?"),
           "independent": independent})
-    result, evidence = verify(question, draft, trajectory, emit, vclient)
+    try:
+        result, evidence = verify(question, draft, trajectory, emit, vclient)
+    except Exception as e:                                  # verifier model unavailable -> skip the check
+        emit({"type": "note", "stage": "verify",
+              "message": f"verifier model unavailable ({type(e).__name__}); skipping verification"})
+        result, evidence = {"grounded": None, "safe": None, "verdict": "pass", "issues": ""}, \
+            _evidence(question, trajectory)
+        emit({"type": "verify", **result})
     final_answer = draft
     revised = False
     if result["verdict"] == "revise":
@@ -194,7 +210,13 @@ def run(question, client, on_event=None, make_postmortem=True):
     emit({"type": "final", "text": final_answer, "steps": len([e for e in trajectory if e["type"] == "tool_call"])})
 
     # 4) Postmortem (synthesis).
-    pm = postmortem(question, final_answer, trajectory, client, emit) if make_postmortem else None
+    pm = None
+    if make_postmortem:
+        try:
+            pm = postmortem(question, final_answer, trajectory, llm.get_role_client("postmortem"), emit)
+        except Exception as e:                              # postmortem is non-critical -> skip on failure
+            emit({"type": "note", "stage": "postmortem",
+                  "message": f"postmortem model unavailable ({type(e).__name__}); skipped"})
 
     return {"route": route, "answer": final_answer, "verdict": result["verdict"],
             "guardrail_violations": violations, "postmortem": pm}

@@ -30,17 +30,14 @@ ONCALL_MODE = os.getenv("ONCALL_MODE", "single")
 RETRIEVAL_MODE = os.getenv("RETRIEVAL_MODE", "keyword")
 
 # --- Judge / verifier model (used by the eval LLM-as-judge AND the multi-agent verifier) ---
-# Pin a STRONG model that is DIFFERENT from the one answering, so the model isn't grading
-# its own work (reduces self-preference bias) and the score is stable run-to-run.
-#   Default: Anthropic Claude — independent when you answer on OpenRouter/OpenAI.
-#   SINGLE-KEY (OpenRouter only): set JUDGE_PROVIDER=openrouter and a JUDGE_MODEL that is
-#   DIFFERENT from OPENROUTER_MODEL, e.g.
-#       export JUDGE_PROVIDER=openrouter
-#       export JUDGE_MODEL="google/gemma-4-31b-it:free"   # ≠ your OPENROUTER_MODEL
-#   (verified working; alt: "qwen/qwen3-next-80b-a3b-instruct:free". NOTE: ':free' models
-#    are heavily rate-limited — fine for a demo, may 429 during a full eval; the OpenRouter
-#    client retries 429s. For reliable eval runs, add OpenRouter credits or use a paid model.)
+# Use a model DIFFERENT from the one answering, so it isn't grading its own work (reduces
+# self-preference bias). Default is ALL-OPENROUTER (no Anthropic/OpenAI key or cost needed):
+#   answerer = OPENROUTER_MODEL (llama-3.3-70b), judge = a different OpenRouter model (gemma).
+#   NOTE: ':free' judge models are rate-limited — fine for a demo, may 429 during a full eval;
+#   the OpenRouter client retries 429s. A smaller judge is also a bit noisier/stricter than a
+#   frontier one — that's an honest cost/quality trade. For a steadier judge, point these at a
+#   paid model (e.g. JUDGE_MODEL="anthropic/claude-sonnet-4-5" over OpenRouter, if you want it).
 #   If the judge client can't be built, the verifier falls back to the answering model and
 #   reports that independence was lost (shown in the visualizer and the run log).
-JUDGE_PROVIDER = os.getenv("JUDGE_PROVIDER", "anthropic")
-JUDGE_MODEL    = os.getenv("JUDGE_MODEL", "claude-sonnet-4-5")
+JUDGE_PROVIDER = os.getenv("JUDGE_PROVIDER", "openrouter")
+JUDGE_MODEL    = os.getenv("JUDGE_MODEL", "google/gemma-4-31b-it:free")

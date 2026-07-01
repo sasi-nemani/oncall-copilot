@@ -3,7 +3,7 @@ from src.agent import answer
 
 
 def main():
-    client = llm.get_client()
+    client = llm.get_role_client("investigator")   # answerer = the investigator role
     multi = config.ONCALL_MODE == "multi"
     print(f"On-Call Copilot  (provider={config.PROVIDER}, mode={config.ONCALL_MODE})  "
           "— ask a question, Ctrl-C to quit.\n")

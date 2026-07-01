@@ -4,8 +4,8 @@ import re
 from src import llm, agent, agents, tools, config
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-client = llm.get_client()              # the system under test (answers questions)
-judge_client = llm.get_judge_client()  # a strong, fixed, ideally-different judge
+client = llm.get_role_client("investigator")  # the system under test (answers questions)
+judge_client = llm.get_role_client("judge")   # the judge role — ideally a different model
 
 # Tools that fetch LIVE data the model can't get from the runbooks (RAG).
 # We hard-require these when a question needs them. `get_runbook` is intentionally
@@ -37,18 +37,35 @@ def judge(answer_text, key_facts):
 def run():
     rows = [json.loads(l) for l in open(os.path.join(ROOT, "evals", "dataset.jsonl"))]
     passed = 0
+    errored = 0
     for row in rows:
-        # Instrument which tools the agent called for this question.
+        # Instrument which tools the agent called; run with retries so one flaky
+        # free-tier call (429/timeout) doesn't crash the whole suite.
         called = []
         orig = tools.run_tool
         tools.run_tool = lambda n, a: called.append(n) or orig(n, a)
-        if config.ONCALL_MODE == "multi":           # triage->investigate->verify->revise
-            ans = agents.run(row["question"], client, make_postmortem=False)["answer"]
-        else:
-            ans = agent.answer(row["question"], client)
-        tools.run_tool = orig
+        try:
+            ans, correct = None, False
+            for attempt in range(3):
+                try:
+                    called.clear()
+                    if config.ONCALL_MODE == "multi":       # triage->investigate->verify->revise
+                        ans = agents.run(row["question"], client, make_postmortem=False)["answer"]
+                    else:
+                        ans = agent.answer(row["question"], client)
+                    correct = judge(ans, row["key_facts"])
+                    break
+                except Exception as e:                      # transient provider error -> retry
+                    if attempt == 2:
+                        raise
+                    print(f"   (retry {attempt + 1}: {type(e).__name__})")
+        except Exception as e:
+            errored += 1
+            print(f"[ERR ] {row['question'][:45]:45}  {type(e).__name__}: {str(e)[:45]}")
+            continue
+        finally:
+            tools.run_tool = orig
 
-        correct = judge(ans, row["key_facts"])
         # Only HARD-require live-data tools; get_runbook is RAG-satisfiable (see above).
         required = [t for t in row["expect_tools"] if t in LIVE_TOOLS]
         tools_ok = all(t in called for t in required)
@@ -59,9 +76,10 @@ def run():
               f"correct={correct} tools={tools_ok} safe={safe}")
 
     rate = passed / len(rows)
-    print(f"\nAnswering: provider={config.PROVIDER} mode={config.ONCALL_MODE}  |  "
-          f"Judge: {config.JUDGE_PROVIDER}/{config.JUDGE_MODEL}")
-    print(f"Pass rate: {passed}/{len(rows)} = {rate:.0%}")
+    print(f"\nAnswering: {getattr(client, 'model', '?')} (mode={config.ONCALL_MODE})  |  "
+          f"Judge: {getattr(judge_client, 'model', '?')}")
+    print(f"Pass rate: {passed}/{len(rows)} = {rate:.0%}"
+          + (f"   ({errored} case(s) errored out — likely free-tier rate limits)" if errored else ""))
     # Ship gate: a per-suite threshold, NOT 100%-every-run (models are non-deterministic).
     print("GATE:", "OPEN" if rate >= 0.8 else "BLOCKED (fix before shipping)")
 
