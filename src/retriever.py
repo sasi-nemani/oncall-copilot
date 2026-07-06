@@ -12,7 +12,9 @@ def _load_chunks():
     # a runbook's "Remediation" travels as one coherent unit instead of being fragmented
     # and crowded out by title-only scraps — the biggest lever for retrieval quality here.
     chunks = []
-    for path in glob.glob(os.path.join(ROOT, "docs", "*.md")):
+    # sorted(): glob order is filesystem-dependent, and chunk order breaks ties in keyword
+    # ranking — unsorted, the same corpus scores differently on macOS vs Linux (CI caught this).
+    for path in sorted(glob.glob(os.path.join(ROOT, "docs", "*.md"))):
         name = os.path.basename(path)
         text = open(path, encoding="utf-8").read()
         title = next((ln.lstrip("# ").strip() for ln in text.splitlines()

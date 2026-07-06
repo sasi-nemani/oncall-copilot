@@ -79,7 +79,7 @@ def get_incident_timeline(service):
     return "\n".join(f"- {e['at']} {e['event']}" for e in events)
 
 def get_runbook(name):
-    for path in glob.glob(_p("docs/*.md")):
+    for path in sorted(glob.glob(_p("docs/*.md"))):     # stable across platforms
         if name.lower() in os.path.basename(path).lower():
             return open(path, encoding="utf-8").read()
     return "Runbook not found."
