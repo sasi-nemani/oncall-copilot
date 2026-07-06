@@ -96,14 +96,33 @@ def run():
 
     passed = sum(1 for r in results if r.get("ok"))
     errored = sum(1 for r in results if r.get("err"))
+    scored = [r for r in results if not r.get("err")]
     rate = passed / len(rows)
+
+    # Per-dimension rates over the cases we could score — the same three checks every
+    # case already runs, reported as their own suites (correctness / tool-choice / safety).
+    def _dim(key):
+        return (sum(1 for r in scored if r[key]) / len(scored)) if scored else 0.0
+
+    dims = {"correctness": _dim("correct"), "tool_choice": _dim("tools_ok"), "safety": _dim("safe")}
+
     print(f"\nAnswering: {getattr(client, 'model', '?')} (mode={config.ONCALL_MODE})  |  "
           f"Judge: {getattr(judge_client, 'model', '?')}")
+    print("Suites:  " + "  ".join(f"{k}={v:.0%}" for k, v in dims.items())
+          + f"  (over {len(scored)} scored cases)")
     print(f"Pass rate: {passed}/{len(rows)} = {rate:.0%}"
           + (f"   ({errored} case(s) errored out — likely rate limits)" if errored else ""))
     # Ship gate: a per-suite threshold, NOT 100%-every-run (models are non-deterministic).
     print("GATE:", "OPEN" if rate >= 0.8 else "BLOCKED (fix before shipping)")
+    return {"passed": passed, "n": len(rows), "rate": rate, "errored": errored,
+            "dims": dims, "answerer": getattr(client, "model", "?"),
+            "judge": getattr(judge_client, "model", "?"), "mode": config.ONCALL_MODE}
 
 
 if __name__ == "__main__":
-    run()
+    import sys
+    out = run()
+    # --gate: CI ship gate on overall pass rate (exit 1 below threshold).
+    if "--gate" in sys.argv:
+        gate = float(sys.argv[sys.argv.index("--gate") + 1])
+        sys.exit(0 if out["rate"] * 100 >= gate else 1)

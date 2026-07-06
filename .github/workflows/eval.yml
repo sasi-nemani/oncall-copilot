@@ -1,0 +1,69 @@
+# Eval gate in CI.
+#
+# Two tiers, honestly separated by what they need:
+#   1) deterministic  — no API key, no cost, runs on EVERY push/PR: unit tests
+#      (dataset schema, tool behaviour, and the broken-retriever tripwire) plus the
+#      retrieval suite behind an 80% recall gate.
+#   2) agent-eval     — needs ANTHROPIC_API_KEY (repo secret) and costs a few cents,
+#      so it runs on main pushes / manual dispatch only, and skips politely with a
+#      notice when the secret isn't configured.
+name: evals
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  deterministic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install core deps (no torch — keyword retrieval only in CI)
+        run: pip install --quiet openai anthropic mcp python-dotenv
+      - name: Unit tests (schema, tools, gate tripwire)
+        run: python -m unittest discover tests -v
+      - name: Retrieval suite (deterministic, keyless) — gate ≥80% recall
+        run: python -m evals.retrieval_compare --mode keyword --gate 80
+
+  agent-eval:
+    # LLM-judged suites: costs real (tiny) money, so main + manual only.
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: deterministic
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install core deps
+        run: pip install --quiet openai anthropic mcp python-dotenv
+      - name: Check for API key
+        id: key
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::ANTHROPIC_API_KEY secret not set — agent eval skipped (deterministic suites still gate)."
+          fi
+      - name: Agent eval (Haiku answerer + judge) — gate ≥80% pass rate
+        if: steps.key.outputs.skip != 'true'
+        env:
+          PROVIDER_INVESTIGATOR: anthropic
+          MODEL_INVESTIGATOR: claude-haiku-4-5-20251001
+          PROVIDER_JUDGE: anthropic
+          MODEL_JUDGE: claude-haiku-4-5-20251001
+          EVAL_WORKERS: "4"
+        run: |
+          python -m evals.run_evals --gate 80 | tee eval.log
+          {
+            echo "### Agent eval"
+            echo '```'
+            tail -6 eval.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

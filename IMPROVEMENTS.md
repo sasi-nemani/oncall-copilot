@@ -22,6 +22,7 @@ Each entry is **What → Why → Result / what I learned.** Dates and commit has
 | 2026-07-01 | Answerer comparison: Haiku 90% vs llama 56% — the answerer dominates | _(model choice)_ |
 | 2026-07-01 | Parallelized the eval (EVAL_WORKERS, thread pool) | _(harness)_ |
 | 2026-07-06 | Richer ops tools: get_alerts + get_incident_timeline (36→40 cases) | _(new tools)_ |
+| 2026-07-06 | Evals in CI: keyless deterministic gate + keyed agent eval; retrieval suite 3→10 | _(continuous evaluation)_ |
 
 ---
 
@@ -242,6 +243,21 @@ The `large` case is the honest isolation of the embeddings win: "datastore/crawl
 - **Also added:** 4 new eval cases (**36→40**) — the alerts overview, the payments "no active alerts" trap (with must-not-say guards), and the checkout/auth timeline walks.
 - **Result (one real run, Haiku 4.5 answering, single-agent):** **37/40 = 92%, GATE: OPEN.** All 4 new cases passed with the right tools chosen. The nicest part: **existing** cases started using the new tools *unprompted* — "which service looks worst right now?" pulled `get_alerts` on its own as corroborating evidence. Give the model better instruments and it uses them without being told; the same lesson as the `get_metric` thresholds fix, from the other direction. The 3 fails are familiar faces (the payments-deploy framing case and the two multi-service sweeps — the known weak spot).
 - **Honest caveats:** the run is **self-graded** (Haiku answered *and* judged — OpenRouter is still out of credits) and the dataset size changed (36→40), so this number is **not comparable** to the older 36-case table rows. Tables get re-baselined when evals move to CI.
+
+---
+
+## 2026-07-06 · Evals moved into CI — the gate now runs itself
+
+**In plain terms:** until now the eval suite only ran when I remembered to run it. A quality gate you have to *remember* is a dashboard nobody looks at — the on-call version of an alert with no pager. Now every push to GitHub runs the checks automatically, and a change that breaks retrieval turns the build red before it ships.
+
+- **What I built:**
+  - **Two CI tiers, split by what they honestly need.** The *deterministic* tier needs no API key and costs nothing, so it runs on every push and PR: unit tests (dataset schema, tool behaviour, read-only surface) plus the retrieval suite behind an **≥80% recall gate**. The *agent* tier calls real models (a few cents per run), so it runs on main pushes and manual triggers only — and skips with a clear notice if no key secret is configured, rather than failing mysteriously.
+  - **The retrieval suite grew 3 → 10 cases**, every gold marker verified to exist in the corpus (a schema test enforces that forever — an unwinnable case measures nothing). Current real numbers: keyword **16/18 = 89%**, hybrid **18/18 = 100%** (the one keyword miss is the deliberate synonym-gap case).
+  - **A gate that can prove it works.** The test suite includes a *broken-retriever tripwire*: it deliberately breaks retrieval in-memory and asserts the suite drops below the gate. If that test ever passes with a broken retriever, the gate is decoration — so CI checks the checker.
+  - **Per-suite reporting.** The agent eval now reports correctness / tool-choice / safety as separate rates alongside the overall gate (latest real run, Haiku answering: 92% / 95% / 98%, pass 35/40 = 88%, gate OPEN — same self-graded caveat as before).
+  - **`python -m evals.report`** regenerates the README's "Latest verified run" table between markers from an actual run — published numbers are outputs of execution, never hand-edited.
+- **Why:** models and prompts drift, and so do datasets. Continuous evaluation is the difference between "it worked when I checked" and "it works" — the same reason production systems have CI at all. The keyless/keyed split matters too: a contributor without any API key still gets a meaningful green/red signal.
+- **What I learned:** the hard part wasn't the workflow file — it was making the gate *falsifiable*. Writing the tripwire test forced the question "would this gate actually catch the failure it exists for?", which is the eval-design equivalent of testing your backups by restoring them.
 
 ---
 
