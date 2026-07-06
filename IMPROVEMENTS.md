@@ -258,6 +258,7 @@ The `large` case is the honest isolation of the embeddings win: "datastore/crawl
   - **`python -m evals.report`** regenerates the README's "Latest verified run" table between markers from an actual run — published numbers are outputs of execution, never hand-edited.
 - **Why:** models and prompts drift, and so do datasets. Continuous evaluation is the difference between "it worked when I checked" and "it works" — the same reason production systems have CI at all. The keyless/keyed split matters too: a contributor without any API key still gets a meaningful green/red signal.
 - **What I learned:** the hard part wasn't the workflow file — it was making the gate *falsifiable*. Writing the tripwire test forced the question "would this gate actually catch the failure it exists for?", which is the eval-design equivalent of testing your backups by restoring them.
+- **And CI earned its keep on its very first run.** The first pipeline went **red**: the same corpus scored 89% keyword recall on my Mac but 78% on the Linux runner. Root cause: `glob` returns files in filesystem-dependent order, and chunk order breaks ranking ties differently per platform — my "deterministic" suite wasn't deterministic across machines. One `sorted()` fixed it, and the second run went green with identical numbers on both platforms. A works-on-my-machine bug in the *eval harness itself*, caught within minutes of having CI — I couldn't have scripted a better argument for it.
 
 ---
 
