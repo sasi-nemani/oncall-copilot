@@ -215,7 +215,6 @@ The `large` case isolates what embeddings buy: its words share *nothing* with th
 Deeper write-ups:
 - **[`WALKTHROUGH.md`](./WALKTHROUGH.md)** — *what I built, how, and why*, decision by decision, in my own voice (start here if you want my thinking).
 - **[`IMPROVEMENTS.md`](./IMPROVEMENTS.md)** — the improvement log: every change, why I made it, and what it taught me (including what *didn't* work). The evolution of the project.
-- **[`ROADMAP.md`](./ROADMAP.md)** — the v2 direction: what I'm building next (and what I'm deliberately *not* building).
 - [`notes/full-build.md`](./notes/full-build.md) — full build guide + interview Q&A.
 - [`notes/explained-simply.md`](./notes/explained-simply.md) — plain-English tour, no jargon.
 

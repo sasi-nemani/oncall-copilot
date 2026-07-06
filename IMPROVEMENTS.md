@@ -21,7 +21,7 @@ Each entry is **What → Why → Result / what I learned.** Dates and commit has
 | 2026-07-01 | Verifier "recalibration" — tested over 3 seeds, no gain, **reverted** | _(open thread #3 — negative result)_ |
 | 2026-07-01 | Answerer comparison: Haiku 90% vs llama 56% — the answerer dominates | _(model choice)_ |
 | 2026-07-01 | Parallelized the eval (EVAL_WORKERS, thread pool) | _(harness)_ |
-| 2026-07-06 | Richer ops tools: get_alerts + get_incident_timeline (36→40 cases) | _(v2 P0-4)_ |
+| 2026-07-06 | Richer ops tools: get_alerts + get_incident_timeline (36→40 cases) | _(new tools)_ |
 
 ---
 
@@ -230,9 +230,9 @@ The `large` case is the honest isolation of the embeddings win: "datastore/crawl
 
 ---
 
-## 2026-07-06 · Richer ops tools — `get_alerts` + `get_incident_timeline` (v2 P0-4)
+## 2026-07-06 · Richer ops tools — `get_alerts` + `get_incident_timeline`
 
-**In plain terms:** when you're on call, the first two questions are always *"what's paging right now?"* and *"what happened, in what order?"*. Until now the assistant couldn't answer either directly — it had to stitch a picture together from three separate tools (metrics, deploys, logs), the way you'd reconstruct a story from receipts. This change gives it the two tools a real on-call engineer reaches for first: an **alerts view** and an **incident timeline**. It's the first item off the [v2 roadmap](./ROADMAP.md).
+**In plain terms:** when you're on call, the first two questions are always *"what's paging right now?"* and *"what happened, in what order?"*. Until now the assistant couldn't answer either directly — it had to stitch a picture together from three separate tools (metrics, deploys, logs), the way you'd reconstruct a story from receipts. This change gives it the two tools a real on-call engineer reaches for first: an **alerts view** and an **incident timeline**.
 
 - **What I built:** two new **read-only** tools, wired in everywhere the existing five live (tool registry, MCP server — now **7 tools** — the guardrail allow-list, and the eval harness):
   - `get_alerts(service?)` — lists the alerts *currently firing* (checkout and auth error-rate, search latency). Crucially, when a service is clean it says so **in words**: *"No active alerts for 'payments'."*
@@ -241,7 +241,7 @@ The `large` case is the honest isolation of the embeddings win: "datastore/crawl
 - **Why the explicit "no active alerts" wording matters:** it's an overclaim-safety device. Models are tempted to *infer* that an alert exists just because you asked about one. A tool that states the negative outright gives the model grounded evidence for saying "payments is fine" — the same "point at the evidence, don't guess" principle behind the whole project.
 - **Also added:** 4 new eval cases (**36→40**) — the alerts overview, the payments "no active alerts" trap (with must-not-say guards), and the checkout/auth timeline walks.
 - **Result (one real run, Haiku 4.5 answering, single-agent):** **37/40 = 92%, GATE: OPEN.** All 4 new cases passed with the right tools chosen. The nicest part: **existing** cases started using the new tools *unprompted* — "which service looks worst right now?" pulled `get_alerts` on its own as corroborating evidence. Give the model better instruments and it uses them without being told; the same lesson as the `get_metric` thresholds fix, from the other direction. The 3 fails are familiar faces (the payments-deploy framing case and the two multi-service sweeps — the known weak spot).
-- **Honest caveats:** the run is **self-graded** (Haiku answered *and* judged — OpenRouter is still out of credits) and the dataset size changed (36→40), so this number is **not comparable** to the older 36-case table rows. Tables get re-baselined when evals move to CI (next on the [roadmap](./ROADMAP.md)).
+- **Honest caveats:** the run is **self-graded** (Haiku answered *and* judged — OpenRouter is still out of credits) and the dataset size changed (36→40), so this number is **not comparable** to the older 36-case table rows. Tables get re-baselined when evals move to CI.
 
 ---
 
