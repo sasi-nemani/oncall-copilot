@@ -8,6 +8,8 @@ def _p(rel): return os.path.join(ROOT, rel)
 
 def _metrics(): return json.load(open(_p("data/metrics.json")))
 def _deploys(): return json.load(open(_p("data/deploys.json")))
+def _alerts(): return json.load(open(_p("data/alerts.json")))
+def _incidents(): return json.load(open(_p("data/incidents.json")))
 
 
 def list_services():
@@ -58,6 +60,24 @@ def search_logs(query, service=None):
             out.append(f"{rec['at']} {rec['level']} {rec['service']}: {rec['msg']}")
     return "\n".join(out) or "No matching logs."
 
+def get_alerts(service=None):
+    # Only FIRING alerts count as active; resolved ones are history, not a page.
+    firing = [a for a in _alerts() if a["status"] == "firing"
+              and (not service or a["service"] == service)]
+    if not firing:
+        # Say the negative EXPLICITLY — "no active alerts for X" is an answer, and it
+        # stops the model inferring an alert exists just because the service was asked about.
+        return f"No active alerts for '{service}'." if service else "No active alerts."
+    return "\n".join(f"{a['service']} {a['name']} {a['severity']} {a['status']} "
+                     f"since {a['since']}: {a['summary']}" for a in firing)
+
+def get_incident_timeline(service):
+    events = _incidents().get(service, [])
+    if not events:
+        return f"No incident timeline for '{service}'."
+    # Events are stored chronologically; keep file order rather than re-sorting.
+    return "\n".join(f"- {e['at']} {e['event']}" for e in events)
+
 def get_runbook(name):
     for path in glob.glob(_p("docs/*.md")):
         if name.lower() in os.path.basename(path).lower():
@@ -83,6 +103,12 @@ TOOLS = [
     {"name": "get_runbook", "description": "Fetch a runbook by name.",
      "parameters": {"type": "object",
         "properties": {"name": {"type": "string"}}, "required": ["name"]}, "fn": get_runbook},
+    {"name": "get_alerts", "description": "List currently FIRING alerts, optionally for one service. Says explicitly when a service has no active alerts.",
+     "parameters": {"type": "object",
+        "properties": {"service": {"type": "string"}}}, "fn": get_alerts},
+    {"name": "get_incident_timeline", "description": "Chronological incident timeline for a service (deploys, errors, breaches, alerts).",
+     "parameters": {"type": "object",
+        "properties": {"service": {"type": "string"}}, "required": ["service"]}, "fn": get_incident_timeline},
 ]
 
 def run_tool(name, args):

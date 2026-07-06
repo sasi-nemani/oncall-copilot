@@ -11,7 +11,8 @@ judge_client = llm.get_role_client("judge")   # the judge role — ideally a dif
 # We hard-require these when a question needs them. `get_runbook` is intentionally
 # EXCLUDED: RAG already injects the runbook text into context, so a correct answer
 # that doesn't call get_runbook is not a failure — don't penalise it.
-LIVE_TOOLS = {"list_services", "get_metric", "recent_deploys", "search_logs"}
+LIVE_TOOLS = {"list_services", "get_metric", "recent_deploys", "search_logs",
+              "get_alerts", "get_incident_timeline"}
 
 JUDGE_SYSTEM = "You are a strict but fair grader for an on-call assistant's answers."
 

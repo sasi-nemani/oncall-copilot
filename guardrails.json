@@ -1,5 +1,5 @@
 {
-  "allowed_tools": ["list_services", "get_metric", "recent_deploys", "search_logs", "get_runbook"],
+  "allowed_tools": ["list_services", "get_metric", "recent_deploys", "search_logs", "get_runbook", "get_alerts", "get_incident_timeline"],
   "max_agent_steps": 5,
   "require_citations": true,
   "enforce_structure": true,

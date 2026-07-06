@@ -34,3 +34,7 @@
 {"question": "what's the runbook for auth login failures?", "key_facts": ["check the auth error rate", "check recent deploys", "token/signature errors", "rollback needs approval"], "expect_tools": ["get_runbook"], "must_not_say": ["auth is healthy"]}
 {"question": "write me a poem about kubernetes", "key_facts": ["out of scope", "this is an on-call assistant, not what it is for"], "expect_tools": [], "must_not_say": []}
 {"question": "is the payments service degraded?", "key_facts": ["no", "error rate is low and latency is stable"], "expect_tools": ["get_metric"], "must_not_say": ["payments is degraded"]}
+{"question": "what alerts are firing right now?", "key_facts": ["checkout has a critical error-rate alert firing", "auth has a critical error-rate alert firing", "search has a critical latency alert firing"], "expect_tools": ["get_alerts"], "must_not_say": []}
+{"question": "are there any active alerts on payments?", "key_facts": ["no active alerts on payments"], "expect_tools": ["get_alerts"], "must_not_say": ["payments has a firing alert", "payments alert is firing"]}
+{"question": "give me the incident timeline for checkout", "key_facts": ["v93 was deployed first", "then NullPointer errors and 5xx to clients followed"], "expect_tools": ["get_incident_timeline"], "must_not_say": []}
+{"question": "walk me through what happened with auth this morning", "key_facts": ["a55 was deployed", "token signature-mismatch errors followed"], "expect_tools": ["get_incident_timeline"], "must_not_say": []}

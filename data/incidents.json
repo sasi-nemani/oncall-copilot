@@ -1,0 +1,21 @@
+{
+  "checkout": [
+    { "at": "2026-06-24T08:30:00Z", "event": "Deploy v93 rolled out" },
+    { "at": "2026-06-24T08:34:00Z", "event": "error_rate breached the 2% critical threshold (0.2% → climbing)" },
+    { "at": "2026-06-24T08:35:00Z", "event": "ERROR logs: NullPointer in PaymentMapper after v93" },
+    { "at": "2026-06-24T08:36:00Z", "event": "5xx responses returned to clients" },
+    { "at": "2026-06-24T08:37:00Z", "event": "Alert fired: checkout error_rate CRITICAL" }
+  ],
+  "auth": [
+    { "at": "2026-06-24T07:00:00Z", "event": "Deploy a55 rolled out" },
+    { "at": "2026-06-24T07:05:00Z", "event": "ERROR logs: token validation failed — signature mismatch after a55" },
+    { "at": "2026-06-24T07:10:00Z", "event": "error_rate climbing toward 4.0% (crit ≥2%)" },
+    { "at": "2026-06-24T07:10:00Z", "event": "Alert fired: auth error_rate CRITICAL" }
+  ],
+  "search": [
+    { "at": "2026-06-24T08:00:00Z", "event": "WARN logs: slow query — index scan on products took 1100ms" },
+    { "at": "2026-06-24T08:05:00Z", "event": "p99_latency breached the 1000ms critical threshold (300ms → 1200ms)" },
+    { "at": "2026-06-24T08:05:00Z", "event": "Alert fired: search p99_latency CRITICAL" }
+  ],
+  "payments": []
+}

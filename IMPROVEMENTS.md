@@ -21,6 +21,7 @@ Each entry is **What → Why → Result / what I learned.** Dates and commit has
 | 2026-07-01 | Verifier "recalibration" — tested over 3 seeds, no gain, **reverted** | _(open thread #3 — negative result)_ |
 | 2026-07-01 | Answerer comparison: Haiku 90% vs llama 56% — the answerer dominates | _(model choice)_ |
 | 2026-07-01 | Parallelized the eval (EVAL_WORKERS, thread pool) | _(harness)_ |
+| 2026-07-06 | Richer ops tools: get_alerts + get_incident_timeline (36→40 cases) | _(v2 P0-4)_ |
 
 ---
 
@@ -226,6 +227,15 @@ The `large` case is the honest isolation of the embeddings win: "datastore/crawl
 - **Gotcha I had to fix first:** the runner captured which tools a case called by globally monkey-patching `tools.run_tool` — not thread-safe (concurrent cases would clobber each other). Moved capture to the per-case **`on_event` hook**, which is both cleaner and concurrency-safe.
 - **Result:** 36 cases in **46s with 5 workers vs 210s single-threaded = 4.6×**, 0 errors (Haiku answerer). Near-linear in workers, as expected for I/O-bound work.
 - **Honest tradeoff:** parallelism raises the *request rate*, so on a rate-limited or out-of-credit account it just triggers more `429`/`402` errors. Keep workers modest (3–5) — it's a speedup when the API has headroom, not a way around limits.
+
+---
+
+## 2026-07-06 · Richer ops tools — `get_alerts` + `get_incident_timeline` (v2 P0-4)
+
+- **What:** two new **read-only** tools: `get_alerts(service=None)` (currently firing alerts, with an *explicit* "No active alerts for 'X'." when a service is clean) and `get_incident_timeline(service)` (chronological `- <time> <event>` lines per service). Backed by two new mock files, `data/alerts.json` and `data/incidents.json`, kept consistent with the existing story (checkout v93 → NullPointer → 5xx; auth a55 → signature mismatch; search latency, no recent deploy; payments healthy — it gets one old *resolved* alert so "no ACTIVE alerts" is a real distinction, not just an empty file). Wired everywhere the other tools live: `TOOLS` registry, MCP server (now **7 tools**), `guardrails.json` `allowed_tools`, and the eval harness's `LIVE_TOOLS`. Added **4 eval cases (36→40)**: firing alerts overview, the payments "no active alerts" negative (with `must_not_say` guards), and the checkout/auth timelines.
+- **Why:** the agent could read metrics, deploys, and logs, but a real on-call flow starts from *"what's paging right now?"* and *"what happened, in order?"* — those were reconstructions the model had to stitch together from three tools. Also an overclaim-safety angle: a tool that explicitly says "no active alerts for payments" gives the model grounded evidence for a *negative* claim, instead of leaving it to infer health from absence.
+- **Result:** one full run with **Haiku 4.5 answering** (single-agent, 5 workers): **37/40 = 92%, GATE: OPEN**. All **4 new cases passed**, and the traces show the new tools being *chosen* — including unprompted (the "which service looks worst" and "roll back a55" cases pulled `get_alerts`/`get_incident_timeline` on their own). The 3 fails are familiar: `did payments deploy recently?` (judge strictness on framing) and the two multi-service sweeps (`are all services healthy`, `which service looks worst`) failing on tools/safety — the known weak spot.
+- **Honest caveats:** this run is **self-graded** (Haiku answered *and* judged, since OpenRouter is still out of credits — `402`) and **n changed 36→40**, so it is **not comparable** to the older 36-case table rows; the tables get re-baselined when evals move to CI (see [`ROADMAP.md`](./ROADMAP.md)). What I learned: the interesting effect wasn't the 4 new cases passing (they're easy for a frontier model with the right tool) — it was watching *existing* cases start using `get_alerts` as corroborating evidence for free.
 
 ---
 

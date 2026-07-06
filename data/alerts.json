@@ -1,0 +1,14 @@
+[
+  { "service": "checkout", "name": "error_rate", "severity": "CRITICAL", "status": "firing",
+    "since": "2026-06-24T08:37:00Z",
+    "summary": "Error rate at 6.1% (crit ≥2%) — 5xx returned to clients after v93 deploy" },
+  { "service": "auth", "name": "error_rate", "severity": "CRITICAL", "status": "firing",
+    "since": "2026-06-24T07:10:00Z",
+    "summary": "Error rate at 4.0% (crit ≥2%) — token signature-mismatch failures after a55 deploy" },
+  { "service": "search", "name": "p99_latency", "severity": "CRITICAL", "status": "firing",
+    "since": "2026-06-24T08:05:00Z",
+    "summary": "p99 latency at 1200ms (crit ≥1000ms) — slow index-scan queries; no recent deploy" },
+  { "service": "payments", "name": "error_rate", "severity": "WARNING", "status": "resolved",
+    "since": "2026-06-18T10:20:00Z",
+    "summary": "Brief error-rate blip during the v40 deploy; auto-resolved within 10 minutes" }
+]

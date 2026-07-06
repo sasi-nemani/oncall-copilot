@@ -19,6 +19,8 @@ I approach this the way I'd approach a production system: don't trust an answer 
 | `llama-3.3-70b` | multi + "recalibrated" verifier | ~68% (3 runs: 69/64/69) | **−10 pts → reverted** ✗ |
 | **Claude Haiku 4.5** (small, frontier) | single-agent | ~**91%** (3 runs: 92/89/92) | **+34 pts** ✅ **OPEN** |
 
+*Historical rows were measured on the 36-case set; the dataset has since grown (now 40 cases with the new ops tools) — tables will be re-baselined when evals move to CI.*
+
 ```mermaid
 xychart-beta
     title "Pass rate, 36-case eval (judge = Haiku 4.5, n=36)"
@@ -51,12 +53,13 @@ xychart-beta
                     │  recent_deploys        │   │   │ OpenRouter (default)│  │
                     │  search_logs           │   │   │ Anthropic · OpenAI  │  │
                     │  get_runbook           │   │   │ Gemini              │  │
-                    └────────────┬───────────┘   │   └─────────────────────┘  │
-                                 │               └────────────────────────────┘
+                    │  get_alerts            │   │   └─────────────────────┘  │
+                    │  get_incident_timeline │   │                            │
+                    └────────────┬───────────┘   └────────────────────────────┘
                     reads mock   ▼
                     data/*.json,jsonl + docs/*.md
                                  │
-   The same 5 tools are ALSO exposed over MCP ──►  mcp_server/server.py
+   The same 7 tools are ALSO exposed over MCP ──►  mcp_server/server.py
    (so Claude Desktop / Claude Code / any MCP client can use them)
                                  │
    Quality is proven, not vibed ──►  evals/run_evals.py + evals/dataset.jsonl
@@ -75,8 +78,8 @@ export PROVIDER=openrouter
 export OPENROUTER_API_KEY="sk-or-..."          # or ANTHROPIC_API_KEY / OPENAI_API_KEY
 
 python app.py                 # interactive CLI — try: checkout is throwing 5xx, what do I do?
-python -m evals.run_evals     # scorecard + ship gate over 36 labelled incidents
-python mcp_server/server.py   # expose the 5 tools over MCP (stdio)
+python -m evals.run_evals     # scorecard + ship gate over 40 labelled incidents
+python mcp_server/server.py   # expose the 7 tools over MCP (stdio)
 python -m viz.server          # live visualizer → open http://localhost:8000
 
 # swap the brain any time:  export PROVIDER=anthropic | openai | openrouter | gemini
@@ -163,6 +166,8 @@ The headline is a **before/after** on the bigger set, holding the answerer (Open
 
 **+22 points from the governance layer** — the accuracy delta the earlier 15-case set was simply too small to reveal. Neither clears the 80% gate because `llama` is a weak *answerer*; governance helps a lot but can't fully compensate for the base model.
 
+**Fresh number on the grown set (n = 40):** after adding the two ops tools (`get_alerts`, `get_incident_timeline`) and 4 new cases, a single run with **Haiku 4.5 answering** scored **37/40 = 92% — GATE: OPEN**, with all 4 new cases passing and the new tools chosen where expected. Caveat: that run is *self-graded* (Haiku answered and judged) and n changed 36→40, so it is **not comparable** to the table rows above.
+
 > *Reproduce:* the scorecard uses the cheapest Anthropic model as a steadier judge — `export JUDGE_PROVIDER=anthropic MODEL_JUDGE=claude-haiku-4-5-20251001` (needs `ANTHROPIC_API_KEY`; a few cents for the whole suite). The committed default judge is a free OpenRouter model so a fresh clone runs without an Anthropic key — but free tiers throttle on a 36-case loop, so a steadier judge is worth it.
 
 **Earlier runs (original 15-case set), for reference.** With **Sonnet answering *and* judging**, single-agent reached 15/15 after the `get_metric` + chunking fixes — Sonnet is a strong answerer. The all-free stack (llama answering, Gemini judging) landed ~3/15 with several cases lost to free-tier throttling. Two standing lessons: **the judge is itself a variable** (hold it fixed to compare answerers), and **the answerer dominates** (most of the high scores were Sonnet *answering*, not just judging).
@@ -203,13 +208,14 @@ The `large` case isolates what embeddings buy: its words share *nothing* with th
 | `src/guardrails.py` + `guardrails.json` | Configurable safety policy (allowed tools, citations, structure, approval) |
 | `src/models.py` + `models.json` | Per-role model routing (investigator / triage / verifier / postmortem / judge) |
 | `src/trace.py` + `logs/` | Structured per-run JSONL logging (reasoning, actions, observations, verdicts) |
-| `mcp_server/server.py` | MCP: the same 5 tools exposed to any MCP client |
+| `mcp_server/server.py` | MCP: the same 7 tools exposed to any MCP client |
 | `viz/` | Live, dependency-free run visualizer (SSE) — single & multi-agent flows |
 | `evals/` | Evals: dataset + LLM-as-judge + tool-choice + safety + pass-rate gate |
 
 Deeper write-ups:
 - **[`WALKTHROUGH.md`](./WALKTHROUGH.md)** — *what I built, how, and why*, decision by decision, in my own voice (start here if you want my thinking).
 - **[`IMPROVEMENTS.md`](./IMPROVEMENTS.md)** — the improvement log: every change, why I made it, and what it taught me (including what *didn't* work). The evolution of the project.
+- **[`ROADMAP.md`](./ROADMAP.md)** — the v2 direction: what I'm building next (and what I'm deliberately *not* building).
 - [`notes/full-build.md`](./notes/full-build.md) — full build guide + interview Q&A.
 - [`notes/explained-simply.md`](./notes/explained-simply.md) — plain-English tour, no jargon.
 
