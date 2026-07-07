@@ -4,9 +4,9 @@
 #   1) deterministic  — no API key, no cost, runs on EVERY push/PR: unit tests
 #      (dataset schema, tool behaviour, and the broken-retriever tripwire) plus the
 #      retrieval suite behind an 80% recall gate.
-#   2) agent-eval     — needs ANTHROPIC_API_KEY (repo secret) and costs a few cents,
-#      so it runs on main pushes / manual dispatch only, and skips politely with a
-#      notice when the secret isn't configured.
+#   2) agent-eval     — needs a model key secret (GEMINI_API_KEY preferred, or
+#      ANTHROPIC_API_KEY), so it runs on main pushes / manual dispatch only, and
+#      skips politely with a notice when neither secret is configured.
 name: evals
 
 on:
@@ -31,11 +31,14 @@ jobs:
         run: python -m evals.retrieval_compare --mode keyword --gate 80
 
   agent-eval:
-    # LLM-judged suites: costs real (tiny) money, so main + manual only.
+    # LLM-judged suites: needs a model key, so main + manual only. Uses whichever key
+    # secret exists — GEMINI_API_KEY preferred (generous free tier), ANTHROPIC_API_KEY
+    # as fallback — and skips politely when neither is configured.
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     needs: deterministic
     runs-on: ubuntu-latest
     env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
       - uses: actions/checkout@v4
@@ -44,21 +47,33 @@ jobs:
           python-version: "3.12"
       - name: Install core deps
         run: pip install --quiet openai anthropic mcp python-dotenv
-      - name: Check for API key
+      - name: Pick provider from available key secrets
         id: key
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
+          if [ -n "$GEMINI_API_KEY" ]; then
+            # Gemini free tier throttles under bursts — 2 workers is the sweet spot.
+            {
+              echo "EVAL_PROVIDER=gemini"
+              echo "EVAL_MODEL=gemini-flash-latest"
+              echo "EVAL_WORKERS=2"
+            } >> "$GITHUB_ENV"
+          elif [ -n "$ANTHROPIC_API_KEY" ]; then
+            {
+              echo "EVAL_PROVIDER=anthropic"
+              echo "EVAL_MODEL=claude-haiku-4-5-20251001"
+              echo "EVAL_WORKERS=4"
+            } >> "$GITHUB_ENV"
+          else
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::ANTHROPIC_API_KEY secret not set — agent eval skipped (deterministic suites still gate)."
+            echo "::notice::No GEMINI_API_KEY / ANTHROPIC_API_KEY secret — agent eval skipped (deterministic suites still gate)."
           fi
-      - name: Agent eval (Haiku answerer + judge) — gate ≥80% pass rate
+      - name: Agent eval — gate ≥80% pass rate
         if: steps.key.outputs.skip != 'true'
         env:
-          PROVIDER_INVESTIGATOR: anthropic
-          MODEL_INVESTIGATOR: claude-haiku-4-5-20251001
-          PROVIDER_JUDGE: anthropic
-          MODEL_JUDGE: claude-haiku-4-5-20251001
-          EVAL_WORKERS: "4"
+          PROVIDER_INVESTIGATOR: ${{ env.EVAL_PROVIDER }}
+          MODEL_INVESTIGATOR: ${{ env.EVAL_MODEL }}
+          PROVIDER_JUDGE: ${{ env.EVAL_PROVIDER }}
+          MODEL_JUDGE: ${{ env.EVAL_MODEL }}
         run: |
           python -m evals.run_evals --gate 80 | tee eval.log
           {

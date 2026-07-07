@@ -72,10 +72,16 @@ class OpenAIClient:
             elif e["type"] == "assistant_text":
                 msgs.append({"role": "assistant", "content": e["text"]})
             elif e["type"] == "assistant_tools":
-                msgs.append({"role": "assistant", "content": None, "tool_calls": [
-                    {"id": c["id"], "type": "function",
-                     "function": {"name": c["name"], "arguments": json.dumps(c["args"])}}
-                    for c in e["calls"]]})
+                tcs = []
+                for c in e["calls"]:
+                    tc = {"id": c["id"], "type": "function",
+                          "function": {"name": c["name"], "arguments": json.dumps(c["args"])}}
+                    # Opaque provider extras (e.g. Gemini thought signatures) must be
+                    # replayed verbatim with the call, or the next turn is rejected.
+                    if c.get("extra_content"):
+                        tc["extra_content"] = c["extra_content"]
+                    tcs.append(tc)
+                msgs.append({"role": "assistant", "content": None, "tool_calls": tcs})
             elif e["type"] == "tool_results":
                 for r in e["results"]:
                     msgs.append({"role": "tool", "tool_call_id": r["id"], "content": r["content"]})
@@ -90,8 +96,14 @@ class OpenAIClient:
         calls = []
         if m.tool_calls:
             for tc in m.tool_calls:
-                calls.append({"id": tc.id, "name": tc.function.name,
-                              "args": json.loads(tc.function.arguments or "{}")})
+                call = {"id": tc.id, "name": tc.function.name,
+                        "args": json.loads(tc.function.arguments or "{}")}
+                # Keep provider extras (e.g. Gemini's extra_content.google.thought_signature)
+                # so they can be replayed with the call on the next turn.
+                extra = tc.model_dump().get("extra_content")
+                if extra:
+                    call["extra_content"] = extra
+                calls.append(call)
         return {"text": m.content or "", "tool_calls": calls}
 
 

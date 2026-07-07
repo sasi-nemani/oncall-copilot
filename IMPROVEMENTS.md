@@ -23,6 +23,7 @@ Each entry is **What → Why → Result / what I learned.** Dates and commit has
 | 2026-07-01 | Parallelized the eval (EVAL_WORKERS, thread pool) | _(harness)_ |
 | 2026-07-06 | Richer ops tools: get_alerts + get_incident_timeline (36→40 cases) | _(new tools)_ |
 | 2026-07-06 | Evals in CI: keyless deterministic gate + keyed agent eval; retrieval suite 3→10 | _(continuous evaluation)_ |
+| 2026-07-07 | Gemini thought-signature passthrough fix; CI eval can run on a Gemini key | _(provider fix)_ |
 
 ---
 
@@ -259,6 +260,16 @@ The `large` case is the honest isolation of the embeddings win: "datastore/crawl
 - **Why:** models and prompts drift, and so do datasets. Continuous evaluation is the difference between "it worked when I checked" and "it works" — the same reason production systems have CI at all. The keyless/keyed split matters too: a contributor without any API key still gets a meaningful green/red signal.
 - **What I learned:** the hard part wasn't the workflow file — it was making the gate *falsifiable*. Writing the tripwire test forced the question "would this gate actually catch the failure it exists for?", which is the eval-design equivalent of testing your backups by restoring them.
 - **And CI earned its keep on its very first run.** The first pipeline went **red**: the same corpus scored 89% keyword recall on my Mac but 78% on the Linux runner. Root cause: `glob` returns files in filesystem-dependent order, and chunk order breaks ranking ties differently per platform — my "deterministic" suite wasn't deterministic across machines. One `sorted()` fixed it, and the second run went green with identical numbers on both platforms. A works-on-my-machine bug in the *eval harness itself*, caught within minutes of having CI — I couldn't have scripted a better argument for it.
+
+---
+
+## 2026-07-07 · Gemini thought-signature fix — and the CI eval now runs on a Gemini key
+
+**In plain terms:** Gemini's newest models attach a cryptographic "thought signature" to every function call, and refuse the *next* turn of a conversation unless you hand the signature back. My provider-neutral conversation log deliberately strips tool calls down to the essentials (`id`, `name`, `args`) — which is exactly the right design for portability, and exactly what broke here: the signature got stripped, so any Gemini agent run died with a 400 on its second step. Single-turn calls worked fine, which is why earlier verification missed it — the bug only appears when a tool result goes *back*.
+
+- **The fix:** the OpenAI-compat client now carries provider extras (`extra_content`) on each tool call as an **opaque passthrough** — captured from the response, replayed verbatim on the next turn, never inspected. Anthropic's path simply ignores the field. The abstraction stays neutral; it just learned to carry luggage it doesn't open.
+- **Why it matters beyond Gemini:** this is what "provider-agnostic" actually costs — providers don't just differ in message *shape*, they differ in what state must round-trip. A translation layer that only maps the fields it knows about will silently drop the ones it doesn't. Verified end-to-end: the full agent loop (RAG → tool calls → grounded answer) now runs all-Gemini.
+- **Also:** the CI agent eval now picks its provider from whichever key secret exists — `GEMINI_API_KEY` preferred, `ANTHROPIC_API_KEY` fallback — with worker count tuned per provider (Gemini's free tier throttles under bursts). Practical driver, stated plainly: the Anthropic credits ran out, and Gemini is currently the funded key.
 
 ---
 
