@@ -51,11 +51,13 @@ jobs:
         id: key
         run: |
           if [ -n "$GEMINI_API_KEY" ]; then
-            # Gemini free tier throttles under bursts — 2 workers is the sweet spot.
+            # Gemini free tier throttles hard under bursts (a 2-worker run lost 37/40
+            # cases to 429s) — run strictly paced: 1 worker + a pause between cases.
             {
               echo "EVAL_PROVIDER=gemini"
               echo "EVAL_MODEL=gemini-flash-latest"
-              echo "EVAL_WORKERS=2"
+              echo "EVAL_WORKERS=1"
+              echo "EVAL_CASE_DELAY=6"
             } >> "$GITHUB_ENV"
           elif [ -n "$ANTHROPIC_API_KEY" ]; then
             {
@@ -69,16 +71,24 @@ jobs:
           fi
       - name: Agent eval — gate ≥80% pass rate
         if: steps.key.outputs.skip != 'true'
+        # shell: bash turns on pipefail — without it, `| tee` swallows the gate's exit
+        # code and a BLOCKED gate shows green. (Found the hard way: run #1 did exactly that.)
+        shell: bash
+        timeout-minutes: 25
         env:
           PROVIDER_INVESTIGATOR: ${{ env.EVAL_PROVIDER }}
           MODEL_INVESTIGATOR: ${{ env.EVAL_MODEL }}
           PROVIDER_JUDGE: ${{ env.EVAL_PROVIDER }}
           MODEL_JUDGE: ${{ env.EVAL_MODEL }}
         run: |
+          set +e   # capture the gate's exit code ourselves; PIPESTATUS dodges the tee-swallow
           python -m evals.run_evals --gate 80 | tee eval.log
+          code=${PIPESTATUS[0]}
+          set -e
           {
             echo "### Agent eval"
             echo '```'
             tail -6 eval.log
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"

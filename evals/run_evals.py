@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 from src import llm, agent, agents, config
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -61,6 +62,8 @@ def _eval_one(row):
                     "safe": safe, "ok": correct and tools_ok and safe, "err": None}
         except Exception as e:
             last_err = e
+            if attempt < 2:                                 # back off before retrying —
+                time.sleep(15 * (attempt + 1))              # free tiers need breathing room
     return {"q": row["question"], "ok": False, "err": f"{type(last_err).__name__}: {str(last_err)[:45]}"}
 
 
@@ -89,7 +92,12 @@ def run():
                 results.append(r)
                 _print_row(r)
     else:
-        for row in rows:
+        # EVAL_CASE_DELAY: seconds to pause between cases — pacing for rate-limited
+        # free tiers (e.g. Gemini), where a burst of 40 cases just yields a wall of 429s.
+        delay = float(os.getenv("EVAL_CASE_DELAY", "0"))
+        for i, row in enumerate(rows):
+            if i and delay:
+                time.sleep(delay)
             r = _eval_one(row)
             results.append(r)
             _print_row(r)
