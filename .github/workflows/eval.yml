@@ -5,8 +5,8 @@
 #      (dataset schema, tool behaviour, and the broken-retriever tripwire) plus the
 #      retrieval suite behind an 80% recall gate.
 #   2) agent-eval     — needs a model key secret (GEMINI_API_KEY preferred, or
-#      ANTHROPIC_API_KEY), so it runs on main pushes / manual dispatch only, and
-#      skips politely with a notice when neither secret is configured.
+#      ANTHROPIC_API_KEY); manual dispatch only (free-tier quota makes per-push LLM
+#      evals unreliable), and skips politely when neither secret is configured.
 name: evals
 
 on:
@@ -31,10 +31,12 @@ jobs:
         run: python -m evals.retrieval_compare --mode keyword --gate 80
 
   agent-eval:
-    # LLM-judged suites: needs a model key, so main + manual only. Uses whichever key
-    # secret exists — GEMINI_API_KEY preferred (generous free tier), ANTHROPIC_API_KEY
-    # as fallback — and skips politely when neither is configured.
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    # LLM-judged suites — MANUAL DISPATCH ONLY. On a free-tier key, an eval-per-push is
+    # a quota lottery (one push run burned the day's budget and starved the next); run it
+    # deliberately when quota is fresh: gh workflow run eval.yml. Uses whichever key
+    # secret exists — GEMINI_API_KEY preferred, ANTHROPIC_API_KEY fallback — and skips
+    # politely when neither is configured.
+    if: github.event_name == 'workflow_dispatch'
     needs: deterministic
     runs-on: ubuntu-latest
     env:
@@ -74,7 +76,7 @@ jobs:
         # shell: bash turns on pipefail — without it, `| tee` swallows the gate's exit
         # code and a BLOCKED gate shows green. (Found the hard way: run #1 did exactly that.)
         shell: bash
-        timeout-minutes: 25
+        timeout-minutes: 55   # paced free-tier run: 40 cases × (calls + 6s gaps + retry backoffs)
         env:
           PROVIDER_INVESTIGATOR: ${{ env.EVAL_PROVIDER }}
           MODEL_INVESTIGATOR: ${{ env.EVAL_MODEL }}
