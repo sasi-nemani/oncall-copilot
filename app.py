@@ -5,8 +5,9 @@ from src.agent import answer
 def main():
     client = llm.get_role_client("investigator")   # answerer = the investigator role
     multi = config.ONCALL_MODE == "multi"
+    history = []                                   # multi-turn memory (single-agent mode)
     print(f"On-Call Copilot  (provider={config.PROVIDER}, mode={config.ONCALL_MODE})  "
-          "— ask a question, Ctrl-C to quit.\n")
+          "— ask a question; follow-ups remember context. /reset clears memory, Ctrl-C quits.\n")
     while True:
         try:
             q = input("you> ").strip()
@@ -15,18 +16,23 @@ def main():
             break
         if not q:
             continue
+        if q.lower() in ("/reset", "/clear"):
+            history = []
+            print("   (memory cleared)\n")
+            continue
         # log every run's full trajectory to logs/run-<id>.jsonl (observability)
         run_id = trace.new_run_id()
         logger = trace.file_logger(run_id, q, config.PROVIDER, config.ONCALL_MODE)
         try:
             if multi:                              # triage -> investigate -> verify -> postmortem
-                result = agents.run(q, client, on_event=logger)
+                result = agents.run(q, client, on_event=logger)   # (multi mode is per-question)
                 print("\nbot>", result["answer"])
                 if result["postmortem"]:
                     print("\n--- postmortem ---\n" + result["postmortem"])
             else:
-                print("\nbot>", answer(q, client, on_event=logger))
-            print(f"   (trace: {logger.path})\n")
+                print("\nbot>", answer(q, client, on_event=logger, history=history))
+                turns = sum(1 for e in history if e["type"] == "user")
+                print(f"   (memory: {turns} turn(s) | trace: {logger.path})\n")
         finally:
             logger.close()
 

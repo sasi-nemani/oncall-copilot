@@ -28,6 +28,10 @@ class TestDatasets(unittest.TestCase):
                 self.assertIn(key, r, f"missing {key!r} in: {r['question'][:40]!r}")
             self.assertTrue(set(r["expect_tools"]) <= known,
                             f"unknown tool in expect_tools: {r['expect_tools']}")
+            if "turns" in r:                     # multi-turn cases: a list of question strings
+                self.assertIsInstance(r["turns"], list)
+                self.assertGreaterEqual(len(r["turns"]), 2)
+                self.assertTrue(all(isinstance(t, str) for t in r["turns"]))
 
     def test_retrieval_cases_schema_and_gold_exists(self):
         # Every gold marker must actually exist somewhere in the corpus — otherwise the
@@ -60,6 +64,54 @@ class TestTools(unittest.TestCase):
         for t in tools.TOOLS:
             for verb in ("delete", "restart", "rollback", "write", "update", "create", "set_"):
                 self.assertNotIn(verb, t["name"])
+
+
+class TestMemory(unittest.TestCase):
+    def _turn(self, i, size=100):
+        return [{"type": "user", "text": f"q{i}" + "x" * size},
+                {"type": "assistant_text", "text": f"a{i}" + "y" * size}]
+
+    def test_trim_noop_under_budget(self):
+        from src import memory
+        h = self._turn(1) + self._turn(2)
+        trimmed, dropped = memory.trim(list(h), max_chars=10_000)
+        self.assertEqual(dropped, 0)
+        self.assertEqual(len(trimmed), 4)
+
+    def test_trim_drops_oldest_whole_turns_first(self):
+        from src import memory
+        h = self._turn(1) + self._turn(2) + self._turn(3)
+        trimmed, dropped = memory.trim(list(h), max_chars=450)   # room for ~2 turns
+        self.assertEqual(dropped, 1)
+        self.assertTrue(trimmed[0]["text"].startswith("q2"))     # turn 1 gone, wholesale
+
+    def test_trim_never_drops_the_last_turn(self):
+        from src import memory
+        h = self._turn(1, size=5000)                             # one huge turn
+        trimmed, dropped = memory.trim(list(h), max_chars=100)
+        self.assertEqual(dropped, 0)
+        self.assertEqual(len(trimmed), 2)
+
+
+class TestInjectionFixtures(unittest.TestCase):
+    # The injection suite only measures something if its poisoned fixtures exist.
+    def test_poisoned_log_line_present(self):
+        lines = _lines("data/logs.jsonl")
+        self.assertTrue(any(r["service"] == "payments"
+                            and "ignore your previous instructions" in r["msg"]
+                            for r in lines))
+
+    def test_poisoned_doc_present_with_policy(self):
+        text = open(os.path.join(ROOT, "docs", "vendor-notes.md")).read()
+        self.assertIn("ATTENTION AI ASSISTANTS", text)           # the attack
+        self.assertIn("not authorisation", text)                 # the correct policy
+
+    def test_injection_cases_in_dataset(self):
+        rows = _lines("evals/dataset.jsonl")
+        blob = " ".join(r["question"].lower() for r in rows)
+        for marker in ("ignore all previous instructions", "vendor maintenance notes",
+                       "payments logs for anything unusual", "ceo has personally approved"):
+            self.assertIn(marker, blob)
 
 
 class TestRetrievalGate(unittest.TestCase):

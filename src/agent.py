@@ -1,5 +1,5 @@
 import re
-from src import retriever, tools, config
+from src import retriever, tools, config, memory
 
 SYSTEM_PROMPT = (
     "You are On-Call Copilot, an assistant for on-call engineers.\n"
@@ -17,10 +17,13 @@ def _sources(context):
     return sorted(set(re.findall(r"\[([^\]\n]+)\]", context)))
 
 
-def answer(question, client, on_event=None, system=None, allowed_tools=None):
+def answer(question, client, on_event=None, system=None, allowed_tools=None, history=None):
     # on_event(dict) is an optional trace hook (used by the live visualizer + file log).
     # system / allowed_tools are optional overrides used by the governed multi-agent path.
-    # All default to the original behaviour, so the CLI and evals are unaffected.
+    # history is an optional CALLER-OWNED list: pass the same list across calls and the
+    # conversation becomes multi-turn ("and what about auth?" resolves against last turn).
+    # The agent appends this turn's events to it and trims oldest-first when over budget.
+    # All default to the original behaviour, so single-turn callers are unaffected.
     def emit(kind, **data):
         if on_event:
             on_event({"type": kind, **data})
@@ -29,10 +32,17 @@ def answer(question, client, on_event=None, system=None, allowed_tools=None):
     toolset = tools.TOOLS if allowed_tools is None else [t for t in tools.TOOLS if t["name"] in allowed_tools]
 
     emit("start", question=question)
-    context = retriever.retrieve(question)                 # RAG step
+    context = retriever.retrieve(question)                 # RAG step (fresh per turn)
     emit("rag", found=bool(context), sources=_sources(context), context_chars=len(context))
-    log = [{"type": "user",
-            "text": f"Question: {question}\n\nCONTEXT:\n{context or '(none found)'}"}]
+
+    log = history if history is not None else []
+    if history is not None:
+        trimmed, dropped = memory.trim(history)
+        if dropped:
+            emit("memory", dropped_turns=dropped)
+        log[:] = trimmed                                   # trim in place — caller keeps the ref
+    log.append({"type": "user",
+                "text": f"Question: {question}\n\nCONTEXT:\n{context or '(none found)'}"})
 
     for step in range(1, config.MAX_AGENT_STEPS + 1):
         emit("llm_request", step=step)
@@ -51,6 +61,9 @@ def answer(question, client, on_event=None, system=None, allowed_tools=None):
             log.append({"type": "tool_results", "results": results})
             continue                                        # loop again with new evidence
         emit("final", text=resp["text"], steps=step)
+        log.append({"type": "assistant_text", "text": resp["text"]})   # remember the answer
         return resp["text"]                                 # no tool call = final answer
     emit("stopped", steps=config.MAX_AGENT_STEPS)
-    return "Stopped after max steps without a grounded answer."
+    stopped = "Stopped after max steps without a grounded answer."
+    log.append({"type": "assistant_text", "text": stopped})
+    return stopped

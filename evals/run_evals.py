@@ -52,6 +52,13 @@ def _eval_one(row):
             called.clear()
             if config.ONCALL_MODE == "multi":               # triage->investigate->verify->revise
                 ans = agents.run(row["question"], client, on_event=on_ev, make_postmortem=False)["answer"]
+            elif row.get("turns"):
+                # Multi-turn case: run the turns through ONE shared history — the final
+                # answer must resolve references like "and what about auth?" from context.
+                # Tool expectations apply across the whole conversation.
+                history = []
+                for turn in row["turns"]:
+                    ans = agent.answer(turn, client, on_event=on_ev, history=history)
             else:
                 ans = agent.answer(row["question"], client, on_event=on_ev)
             correct = judge(ans, row["key_facts"])
