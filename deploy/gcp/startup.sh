@@ -28,9 +28,8 @@ systemctl daemon-reload
 systemctl enable --now ollama
 systemctl restart ollama
 
-# CRITICAL: wait for the Ollama API to actually answer before pulling. `systemctl restart`
-# returns before the server is listening, so pulling immediately races the socket and fails
-# silently — which is exactly what bit the first deploy. Poll /api/tags until it's up.
+# Wait for the Ollama API to actually answer before pulling. `systemctl restart` returns before
+# the server is listening, so pulling immediately would race the socket and fail. Poll /api/tags.
 echo "[oncall] waiting for the Ollama API to accept connections..."
 for i in $(seq 1 30); do
   if curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then

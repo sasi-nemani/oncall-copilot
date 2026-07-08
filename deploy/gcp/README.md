@@ -162,15 +162,9 @@ curl -s "http://$IP:11434/v1/models"     # should list mistral-nemo + qwen2.5:7b
 Watch progress on the serial console (no SSH needed): `gcloud compute instances
 get-serial-port-output oncall-model --zone us-central1-a | grep oncall`.
 
-> **Troubleshooting (things that actually bit me):**
-> - **`ssh` times out but `:11434` works** — the Deep Learning image's sshd can be slow/unresponsive
->   on first boot; use the serial console above instead of SSH.
-> - **Endpoint up but model list stays empty** — a pull failed. Trigger it over the API directly:
->   `curl -N http://$IP:11434/api/pull -d '{"name":"mistral-nemo"}'` (keep the connection open until
->   it finishes). The committed startup script now waits for the API before pulling, which fixes this.
-> - **First inference is slow / times out** — cold-start load of a 12B model into VRAM takes 30–60s;
->   warm it once (`curl http://$IP:11434/api/generate -d '{"model":"mistral-nemo","prompt":"hi","stream":false}'`)
->   before timing anything.
+> **Note:** the first inference call is slow — cold-start load of a 12B model into VRAM takes
+> 30–60s. Warm it once before timing anything:
+> `curl http://$IP:11434/api/generate -d '{"model":"mistral-nemo","prompt":"hi","stream":false}'`.
 
 **Verify tool-calling works** (the investigator needs it — do this before trusting a full run):
 ```bash
