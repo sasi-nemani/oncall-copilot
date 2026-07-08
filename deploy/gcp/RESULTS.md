@@ -31,16 +31,16 @@ per-run summaries are preserved under [`results/`](./results/).
 | 4 | qwen2.5:14b + **hybrid retrieval** | 14B | self-hosted L4 | qwen2.5:7b | _pending_ | _pending_ | — | — | — | — |
 | 5 | qwen2.5:14b, **different-family judge** | 14B | self-hosted L4 | mistral-small | _pending_ | _pending_ | — | — | — | — |
 | 6 | **llama-3.3-70b** | 70B | OpenRouter (API) | **deepseek-chat** (independent) | **57%** | **61%** | 57% / 63% | 96% / 96% | 96% / 98% | 0 |
+| 7 | **claude-sonnet-4** (frontier) | — | OpenRouter (API) | **deepseek-chat** (independent) | **83%** ✅ | **85%** ✅ | 87% / 87% | 96% / 98% | 100% / 100% | 0 |
 
-_For reference: a frontier model (Claude Haiku) scored ~90% on an earlier version of this suite —
-the gap below is the self-hostable-vs-frontier capability gap, measured on the same harness._
-
-**Headline finding:** correctness tracks model capability almost monotonically —
-nemo-12B 43% → qwen-14B ~53% → llama-70B ~60% → (frontier ~90%). Tool-choice and safety saturate
-early (~90–98% even on small models); **answer correctness is the axis that separates models**, and
-it's the one that needs real reasoning. The cheapest way to move it was **a bigger model via API**
-(llama-70B, ~$0.30/run, independent judge) — not a bigger GPU. Self-hosting taught the deployment;
-the API bought the accuracy.
+**Headline finding:** pass rate tracks model capability almost monotonically on the same suite —
+**nemo-12B ~35% → qwen-14B 50% → llama-70B ~59% → claude-sonnet-4 ~84%.** The **80% ship gate is
+passable**, and it takes a **frontier model** to clear it (row 7, verified with an *independent*
+judge — not self-graded). The axis that moves is **correctness** (43% → 87%); tool-choice and
+safety saturate early (~90–100% even on small models), because they need judgement, not raw
+reasoning. The cheapest way to buy accuracy was **a better model via API**, not a bigger GPU —
+self-hosting taught the deployment, the API bought the correctness. The self-hostable/open models
+are *safe and sensible but not yet accurate enough to ship*; that gap is the whole story.
 
 ## What we did, and what each run tells us
 
