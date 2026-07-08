@@ -28,13 +28,25 @@ systemctl daemon-reload
 systemctl enable --now ollama
 systemctl restart ollama
 
+# CRITICAL: wait for the Ollama API to actually answer before pulling. `systemctl restart`
+# returns before the server is listening, so pulling immediately races the socket and fails
+# silently — which is exactly what bit the first deploy. Poll /api/tags until it's up.
+echo "[oncall] waiting for the Ollama API to accept connections..."
+for i in $(seq 1 30); do
+  if curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
+    echo "[oncall] Ollama API is up"; break
+  fi
+  echo "[oncall] API not ready ($i/30), sleeping 5s"; sleep 5
+done
+
 echo "[oncall] pulling models (this is the slow part — several GB each)..."
-# Retry pulls: first boot can race the service coming up.
 for m in "${answerer_model}" "${judge_model}"; do
   for attempt in 1 2 3 4 5; do
     if ollama pull "$m"; then echo "[oncall] pulled $m"; break; fi
     echo "[oncall] pull $m failed (attempt $attempt), retrying in 15s"; sleep 15
   done
+  # Verify it registered; if not, make it visible in the log rather than exiting 0 silently.
+  ollama list | grep -q "$m" && echo "[oncall] confirmed $m" || echo "[oncall] WARNING: $m NOT present after retries"
 done
 
 # A readiness marker the client can poll for (see README).

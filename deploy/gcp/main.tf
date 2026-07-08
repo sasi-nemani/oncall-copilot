@@ -63,9 +63,10 @@ resource "google_compute_instance" "model" {
 
   boot_disk {
     initialize_params {
-      # GCP Deep Learning image ships with CUDA drivers; the metadata flag below installs
-      # the NVIDIA driver on first boot so Ollama sees the GPU with zero manual steps.
-      image = "projects/ml-images/global/images/family/common-cu123-debian-11"
+      # GCP Deep Learning image ships with the NVIDIA driver + CUDA preinstalled, so Ollama
+      # sees the GPU with zero manual steps. (Family list: `gcloud compute images list
+      # --project=deeplearning-platform-release`.)
+      image = "projects/deeplearning-platform-release/global/images/family/common-cu129-ubuntu-2204-nvidia-580"
       size  = var.boot_disk_gb
       type  = "pd-balanced"
     }

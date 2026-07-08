@@ -3,6 +3,8 @@
 .terraform.lock.hcl
 *.tfstate
 *.tfstate.*
+tfplan
+*.tfplan
 crash.log
 # Your project id + IP live here — keep it local.
 terraform.tfvars

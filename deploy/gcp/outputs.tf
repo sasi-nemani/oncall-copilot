@@ -18,6 +18,6 @@ output "ssh_command" {
 }
 
 output "run_eval_hint" {
-  value       = "export SELFHOSTED_BASE_URL=http://${google_compute_instance.model.network_interface[0].access_config[0].nat_ip}:11434/v1 PROVIDER_INVESTIGATOR=selfhosted MODEL_INVESTIGATOR=${var.answerer_model} PROVIDER_JUDGE=selfhosted MODEL_JUDGE=${var.judge_model} ; python -m evals.run_evals"
+  value       = "export SELFHOSTED_BASE_URL=http://${google_compute_instance.model.network_interface[0].access_config[0].nat_ip}:11434/v1 PROVIDER_INVESTIGATOR=selfhosted MODEL_INVESTIGATOR=${var.answerer_model} PROVIDER_JUDGE=selfhosted MODEL_JUDGE=${var.judge_model} ; python3 -m evals.run_evals"
   description = "One-liner to run the full eval against the self-hosted models (both role vars required)."
 }

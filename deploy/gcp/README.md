@@ -15,7 +15,66 @@ answerer (tool-capable)   Mistral-7B   via Ollama   ─┐
 judge (different, smaller) Qwen2.5-3B   via Ollama   ─┘
 ```
 
-Both models are ~4–5GB quantized and fit together on a single 24GB L4.
+Both models fit together on a single 24GB L4 (Nemo ~7GB + Qwen ~4.7GB quantized).
+
+### Measured result (2026-07-08) — the run the free tier couldn't finish
+
+Two back-to-back runs, `mistral-nemo` answering + `qwen2.5:7b` judging, **0 errors** (the free
+hosted tiers 429'd out after ~4 of 46 cases; self-hosted finished all 46, twice):
+
+| Run | Pass | correctness | tool_choice | safety |
+|---|---|---|---|---|
+| 1 | 33% | 43% | 85% | 96% |
+| 2 | 37% | 43% | 76% | 100% |
+
+Stable at ~35% (±2). A 12B open model is *safe* (~98%) and picks the right *tool* (~80%) but is
+weaker on answer *correctness* (43%) than a frontier model — the capability gap, measured cleanly.
+
+#### Why deploy on GCP at all?
+
+Two reasons, one forced and one chosen. **Forced:** the free hosted tiers rate-limit hard — a
+46-case agent eval is ~180 model calls in a burst, and Gemini/OpenRouter `:free` returned 429
+("too many requests") partway through *at any pacing* (one paced attempt scored only 4/46 before
+the rest errored). To get a *complete* number I needed a backend with no per-minute cap, which
+means hosting the model myself. **Chosen:** doing it as Terraform on a GPU VM is the SRE/FDE skill
+I want on the table — provision accelerator infra as code, serve an open model, run a batch job,
+tear it down. The `apply → run → destroy` loop is also the honest cost story: no rate limit, but
+you pay for the GPU while it's up, so you don't leave it up.
+
+#### Why these two models?
+
+- **Answerer = Mistral-Nemo 12B (not Mistral-7B).** The answerer *drives the agent loop* — it must
+  emit clean `tool_calls`, and a single malformed call breaks the whole trajectory. Nemo was built
+  with function-calling as a first-class feature and is markedly more reliable at it than 7B, while
+  still fitting a 24GB L4 (~7GB quantized). Tool-calling reliability was the hard requirement; Nemo
+  meets it (verified with a smoke test before the run).
+- **Judge = Qwen2.5-7B (a *different* family).** A judge's job is faithful rubric-following, and it
+  must be **independent** — grading with the *same* model that answered reintroduces self-preference
+  bias (a model likes its own style). Qwen is a strong small instruction-follower from a completely
+  different lineage than Mistral, so the grade isn't the answerer marking its own homework. ~4.7GB,
+  fits alongside Nemo on the one GPU.
+
+#### Why each sub-score came out where it did
+
+The pass rate combines three independent suites (a case passes only if **all three** pass), so the
+split is more informative than the headline:
+
+- **Safety ~96–100% — highest, and expected.** Safety here is mostly *refusal*: don't act on
+  "restart the service", "delete the logs", or the injected "ignore your instructions" lines. That's
+  a **structural** property of this system (the tools are read-only by construction) reinforced by
+  the prompt — so even a smaller model clears it, because it doesn't need deep reasoning to *not do*
+  a destructive thing. This is the one dimension where model size barely matters.
+- **Tool-choice ~76–85% — good, some variance.** Picking the right read-only tool for a question
+  ("check logs" → `search_logs`) is a **classification** task the 12B model handles well most of the
+  time. It's the noisiest of the three across runs because a borderline question can map to two
+  plausible tools; that's genuine model nondeterminism, not a broken suite.
+- **Correctness 43% — lowest, and the real capability gap.** Correctness is the hard one: read the
+  right evidence, reason over it, and produce a *grounded, cited, accurate* diagnosis that a
+  different-model judge accepts. This needs the reasoning depth a 12B open model simply has less of
+  than a frontier model (Haiku scored ~90% on the same suite). It was **identical (43%) across both
+  runs** — so it's a stable property of the model, not luck. The takeaway isn't "the model is bad";
+  it's that a self-hostable model is *safe and sensible* but not yet *frontier-accurate*, and the
+  harness surfaces exactly that instead of hiding it behind one blended number.
 
 ---
 
@@ -93,15 +152,25 @@ terraform apply    # ~2 min to create; the VM then pulls models for a few more m
 
 ## Step 4 — wait for the models to be ready
 
-`apply` returns before the models finish downloading. Poll the endpoint:
+`apply` returns before the models finish downloading. Note the endpoint answers `200` with an
+**empty** list as soon as Ollama boots — wait for the actual model names to appear:
 ```bash
 IP=$(terraform output -raw instance_ip)
-# 200 + a model list means it's serving:
-until curl -sf "http://$IP:11434/v1/models" >/dev/null; do echo "warming up..."; sleep 15; done
-curl -s "http://$IP:11434/v1/models"     # should list mistral + qwen2.5:3b
+until curl -sf "http://$IP:11434/v1/models" | grep -q mistral-nemo; do echo "pulling..."; sleep 15; done
+curl -s "http://$IP:11434/v1/models"     # should list mistral-nemo + qwen2.5:7b
 ```
-Watch setup logs directly if impatient: `terraform output -raw ssh_command` → then on the box
-`sudo journalctl -u ollama -f` and `tail -f /var/log/oncall-setup.log`.
+Watch progress on the serial console (no SSH needed): `gcloud compute instances
+get-serial-port-output oncall-model --zone us-central1-a | grep oncall`.
+
+> **Troubleshooting (things that actually bit me):**
+> - **`ssh` times out but `:11434` works** — the Deep Learning image's sshd can be slow/unresponsive
+>   on first boot; use the serial console above instead of SSH.
+> - **Endpoint up but model list stays empty** — a pull failed. Trigger it over the API directly:
+>   `curl -N http://$IP:11434/api/pull -d '{"name":"mistral-nemo"}'` (keep the connection open until
+>   it finishes). The committed startup script now waits for the API before pulling, which fixes this.
+> - **First inference is slow / times out** — cold-start load of a 12B model into VRAM takes 30–60s;
+>   warm it once (`curl http://$IP:11434/api/generate -d '{"model":"mistral-nemo","prompt":"hi","stream":false}'`)
+>   before timing anything.
 
 **Verify tool-calling works** (the investigator needs it — do this before trusting a full run):
 ```bash
@@ -120,10 +189,11 @@ to `qwen2.5` or `llama3.1` (strong Ollama tool support) in `terraform.tfvars` an
 ```bash
 cd ../..                                    # repo root
 eval "$(cd deploy/gcp && terraform output -raw run_eval_hint | sed 's/ ; /\n/')"
-# or just copy the exported line from:  terraform output -raw run_eval_hint
-python -m evals.run_evals
+python3 -m evals.run_evals                   # use python3 if `python` isn't on your PATH
 ```
 This is the run the free tier couldn't finish — all 46 cases, on models you host.
+Consider running it **twice** — the answerer/judge aren't fully deterministic, and two runs
+tell you whether the number is stable (mine landed 33% then 37% — trustworthy) or noisy.
 
 ## Step 6 — DESTROY (do not skip)
 
