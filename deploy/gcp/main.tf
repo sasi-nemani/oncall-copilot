@@ -27,6 +27,12 @@ provider "google" {
   zone    = var.zone
 }
 
+locals {
+  # Boot from a models-baked custom image if provided, else the stock Deep Learning image
+  # (which then pulls the models on first boot). See var.models_image.
+  boot_image = var.models_image != "" ? var.models_image : "projects/deeplearning-platform-release/global/images/family/common-cu129-ubuntu-2204-nvidia-580"
+}
+
 # Enable the APIs the deploy needs. Terraform will turn these on; on a brand-new project
 # the first apply can take a minute while they propagate.
 resource "google_project_service" "compute" {
@@ -51,9 +57,13 @@ resource "google_compute_instance" "model" {
   depends_on   = [google_project_service.compute]
 
   # GPU VMs cannot live-migrate — they must TERMINATE on host maintenance.
+  # Spot mode (var.use_spot) uses the preemptible capacity pool — often available when on-demand
+  # L4s are stocked out; the trade is it can be reclaimed mid-run (retry if so).
   scheduling {
     on_host_maintenance = "TERMINATE"
-    automatic_restart   = true
+    automatic_restart   = var.use_spot ? false : true
+    provisioning_model  = var.use_spot ? "SPOT" : "STANDARD"
+    preemptible         = var.use_spot
   }
 
   guest_accelerator {
@@ -63,10 +73,9 @@ resource "google_compute_instance" "model" {
 
   boot_disk {
     initialize_params {
-      # GCP Deep Learning image ships with the NVIDIA driver + CUDA preinstalled, so Ollama
-      # sees the GPU with zero manual steps. (Family list: `gcloud compute images list
-      # --project=deeplearning-platform-release`.)
-      image = "projects/deeplearning-platform-release/global/images/family/common-cu129-ubuntu-2204-nvidia-580"
+      # Stock Deep Learning image (NVIDIA driver + CUDA preinstalled) OR a models-baked custom
+      # image — see local.boot_image / var.models_image. Baked image = no re-download on deploy.
+      image = local.boot_image
       size  = var.boot_disk_gb
       type  = "pd-balanced"
     }

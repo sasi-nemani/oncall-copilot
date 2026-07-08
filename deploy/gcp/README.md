@@ -199,11 +199,35 @@ Confirm it's gone: `gcloud compute instances list` should show nothing.
 
 ---
 
-## Notes & honest caveats
+## Why Ollama and not vLLM?
 
-- **Ollama, not vLLM (on purpose):** Ollama serves multiple models on one GPU with the least
-  fuss and dodges HuggingFace gated-weight friction. vLLM gives higher throughput and is the
-  production upgrade — irrelevant for a 46-case batch. Documented, not hidden.
+Both are model servers (load a model, answer requests over an OpenAI-compatible API). They
+optimise for different jobs:
+
+| | **Ollama** (used here) | **vLLM** |
+|---|---|---|
+| Built for | Local/dev, single box, convenience | Production serving at scale |
+| Many concurrent requests | Roughly one-at-a-time → lower throughput | Continuous batching → far higher throughput |
+| Multiple models on one GPU | Easy — loads/unloads on demand | One model per process; two = two processes splitting the GPU |
+| Setup | One install script + `ollama pull` | Python deps, CUDA/torch matching, HuggingFace downloads |
+| Model source | Own library, no login | HuggingFace — Mistral weights are license-gated (token) |
+| Default precision | 4-bit quantised (fits more, slight quality hit) | Fuller precision (higher fidelity, needs much more VRAM) |
+
+**Why Ollama fits this project:** the eval runs **one case at a time** (`EVAL_WORKERS=1`), so
+vLLM's concurrency superpower would be wasted — nothing to batch. We also need **two different
+models** (answerer + judge) co-resident on **one** L4, which Ollama does trivially and vLLM does
+not. And Ollama sidesteps the HuggingFace gated-weight friction for Mistral. **When you'd switch:**
+the day this is a real service with many engineers querying at once — then throughput is
+everything and vLLM serves that crowd on far less hardware. Knowing *which to reach for when* is
+the point; for a single-user batch job, Ollama wins.
+
+**One honest nuance:** "vLLM is higher quality because it runs full precision" is true in
+general but **not on a 24GB L4** — a 14B model at full precision needs ~28GB, so *both* servers
+must run it quantised here. On this box the real quality lever is a **bigger/better model**, not
+the server software.
+
+## Other notes & honest caveats
+
 - **One VM, not Cloud Run:** serving an open LLM needs a persistent GPU (no scale-to-zero), so
   a managed autoscaler adds moving parts for no benefit on a batch job. Scale-to-zero is the
   right pattern for the *app*, not the model box.

@@ -41,6 +41,27 @@ variable "judge_model" {
   description = "A DIFFERENT, smaller model for the eval judge — independence (no self-grading). No tools needed."
 }
 
+variable "models_image" {
+  type        = string
+  default     = ""
+  description = <<-EOT
+    Optional: a custom image with the models baked in, so deploys DON'T re-download them.
+    Empty = boot the stock Deep Learning image and pull models on first boot.
+    To create one after models are pulled on a running box:
+      gcloud compute images create oncall-models-v1 \
+        --source-disk=oncall-model --source-disk-zone=<zone> --force --project=<project>
+    then set models_image = "projects/<project>/global/images/oncall-models-v1" here.
+    Images are global, so this survives destroy/preemption AND works in any zone (unlike a
+    zonal persistent disk, which matters because L4 stockouts force us to change zones).
+  EOT
+}
+
+variable "use_spot" {
+  type        = bool
+  default     = false
+  description = "Use a Spot (preemptible) L4 — cheaper and often available when on-demand is stocked out, but can be reclaimed mid-run. Fine for a short batch eval; retry if preempted."
+}
+
 variable "boot_disk_gb" {
   type        = number
   default     = 100
