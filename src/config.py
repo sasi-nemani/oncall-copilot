@@ -2,10 +2,17 @@ import os
 
 # Load a local .env if python-dotenv is installed (optional — plain env vars work too).
 try:
-    from dotenv import load_dotenv
-    # override=True so the .env file wins over any stale value already exported in the shell
-    # (e.g. an old OPENROUTER_API_KEY left in the environment) — .env is the source of truth here.
-    load_dotenv(override=True)
+    from dotenv import load_dotenv, dotenv_values
+    # Normal precedence: a var already set in the shell wins (so per-run role overrides like
+    # MODEL_INVESTIGATOR=... on the command line work as expected).
+    load_dotenv()
+    # EXCEPTION: API keys in .env must win over any STALE key left exported in the shell
+    # (an old OPENROUTER_API_KEY in the environment once caused a 401). Force just the keys.
+    _dotenv = dotenv_values()
+    for _key in ("OPENROUTER_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY",
+                 "ANTHROPIC_API_KEY", "OPENAI_API_KEY"):
+        if _dotenv.get(_key):
+            os.environ[_key] = _dotenv[_key]
 except ImportError:
     pass
 
