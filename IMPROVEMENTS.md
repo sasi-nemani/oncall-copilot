@@ -27,6 +27,8 @@ Each entry is **What → Why → Result / what I learned.** Dates and commit has
 | 2026-07-07 | Prompt-injection safety suite (poisoned log + doc + false authority) | _(security)_ |
 | 2026-07-07 | Multi-turn conversation memory with oldest-turn-first trim | _(agent capability)_ |
 | 2026-07-08 | Self-hosted models on GCP (Terraform) — ran the eval the free tier couldn't | _(deploy + honest numbers)_ |
+| 2026-07-08 | Model bake-off: pass rate tracks model capability (35→84%); frontier clears the 80% gate | _(measured capability gap)_ |
+| 2026-07-08 | Harness tweaks (hybrid retrieval, more steps) — no gain on a capable model, **kept** | _(negative result)_ |
 
 ---
 
@@ -314,6 +316,16 @@ The `large` case is the honest isolation of the embeddings win: "datastore/crawl
 
   **Zero errors** — the whole suite ran start-to-finish, which the free tier never managed. The number is *stable* (±2 points; correctness identical both runs), so it's trustworthy.
 - **What the number actually says (and why a low score is a good outcome here):** ~35% is *far* below the frontier models on this same suite (Haiku hit ~90% earlier). But look at the split — the 12B open model gets **safety right ~98%** (it refuses the injections and unsafe restart/delete requests) and **picks the right tool ~80%** of the time; what it lacks is **answer correctness (43%)** — the grounded, cited, accurate diagnosis. That's the honest shape of the capability gap: a small self-hostable model is *safe and sensible* but not as *accurate* as a frontier model, and my eval harness measures that gap cleanly instead of hiding it. The harness also proved provider-portable — same suite, same gates, a completely different (self-hosted) backend.
+
+---
+
+## 2026-07-08 · How good does the model have to be? — a bake-off, and a negative result
+
+**In plain terms:** once the exam was trustworthy, I asked the question every team weighing AI eventually hits — not *is AI good*, but *which model, at what cost, actually clears the bar?* So I ran the same 46-case exam across a ladder of models, and then tried to cheat the result with harness tricks. The cheating failed, which was the interesting part.
+
+- **The bake-off (same suite, independent judge every time):** a self-hostable 12B → **35%**, a 14B → **50%**, a 70B (API) → **59%**, a frontier model → **84%** — clearing the 80% gate only at the top. The breakdown is the story: **safety (~95–100%) and tool-choice (~90–96%) were solved even on the small models** — those need judgement, not horsepower. The entire spread was **one axis: correctness** (43% → 87%). *Accuracy* is what a bigger model buys; everything else saturates early. Full ledger: [`deploy/gcp/RESULTS.md`](./deploy/gcp/RESULTS.md).
+- **The negative result — can a *harness* tweak substitute for a better model?** Fixed the model (deepseek answerer + a different-family llama judge) and varied one knob at a time: keyword→**hybrid retrieval**, and 5→**8 agent steps**. Baseline 76% → hybrid 74% → more-steps 76%. **Neither helped; hybrid was fractionally worse.**
+- **What I learned:** "fix the instrument, not the model" is real — *when the instrument is broken*. Earlier, at 43–56%, fixing the search and the runbook filing was worth 40 points. But on an already-capable model with a small corpus, keyword search already finds the right page and 5 steps already gather enough evidence, so the fancier knobs had no slack to give. **The ceiling was the model, not the harness — you can't tune your way to competence.** This is the mirror image of the earlier tuning wins, and both being true is the honest whole picture. Kept, like the reverted verifier, because a log that only contains wins isn't measuring anything. (`MAX_AGENT_STEPS` is now env-tunable so the experiment reproduces.)
 
 ---
 
