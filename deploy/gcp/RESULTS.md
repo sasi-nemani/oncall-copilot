@@ -90,14 +90,19 @@ lift correctness **without** a better model? Fixed answerer (**deepseek-chat**) 
 
 | Config | Pass | correctness | tool_choice | safety |
 |---|---|---|---|---|
-| baseline (keyword retrieval, 5 agent steps) | **76%** | 83% | 89% | 93% |
+| baseline (keyword retrieval, 5 agent steps, base prompt) | **76%** | 83% | 89% | 93% |
 | hybrid retrieval (embeddings) | 74% | 80% | 93% | 93% |
 | more agent steps (8) | 76% | 80% | 93% | 98% |
+| few-shot prompt (2 worked examples) | 78% | 80% | 96% | 98% |
 
-**Neither tweak improved the score** — hybrid retrieval was marginally worse, more steps flat
-(deltas within single-run noise, but there is clearly no *gain*). **Why:** the model is already
-capable (76% baseline) and the corpus is small, so keyword search already surfaces the right
-runbook and 5 steps already gather enough evidence — the tuned knobs had no slack to give.
+**None of the three levers improved correctness** — retrieval marginally worse, more steps flat,
+few-shot flat on pass but correctness slightly *down* (deltas within single-run noise; the clear
+signal is no *gain*). The few-shot run is the most instructive: it lifted **tool-choice (89→96)
+and safety (93→98)** — the exact behaviors the examples *demonstrated* — but **not correctness**.
+Few-shot teaches *style and behavior* (imitable); it can't manufacture *accuracy* (which needs
+reasoning the model either has or doesn't). **Why the levers had no slack:** the model is already
+capable (76% baseline) on a small corpus, so keyword search already surfaces the right runbook and
+5 steps already gather enough evidence.
 "Fix the instrument, not the model" pays off when the instrument is *broken* (see the earlier
 noisy-alert / bad-filing fixes at 43–56%); here the instrument was fine, so **the ceiling was the
 model, not the harness.** Reinforces the bake-off: you can't tune your way to the gate — you bring

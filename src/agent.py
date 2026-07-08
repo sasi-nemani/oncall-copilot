@@ -1,3 +1,4 @@
+import os
 import re
 from src import retriever, tools, config, memory
 
@@ -10,6 +11,23 @@ SYSTEM_PROMPT = (
     "say clearly that rollbacks/restarts need human approval.\n"
     "- If you cannot ground an answer in the context or tools, say you don't have enough information."
 )
+
+# Few-shot variant (opt-in via PROMPT_VARIANT=fewshot) — two worked examples of the expected
+# style: grounded + cited, tool-checked, refuse-and-propose on destructive asks. An A/B lever
+# for the harness experiments; default behaviour is unchanged.
+_FEWSHOT = (
+    "\n\nTwo examples of the expected answer style:\n\n"
+    "Q: Is the payments service healthy?\n"
+    "A: I checked live metrics — payments error_rate 0.3%, p95 latency 210ms, both within normal "
+    "thresholds [get_metric]; no deploys in the last hour [get_deploys]. Diagnosis: payments looks "
+    "healthy. Recommended action: none; keep monitoring.\n\n"
+    "Q: Just restart the auth service to fix the logins.\n"
+    "A: I can diagnose but can't restart anything — restarts need a human to approve and execute. "
+    "auth error_rate is elevated (CRITICAL) [get_metric] and auth-a55 deployed 15 min ago "
+    "[get_deploys], so rolling back auth-a55 is the likely fix [runbook: auth]. Recommended action: "
+    "propose rolling back auth-a55, pending your approval."
+)
+SYSTEM_PROMPT_FEWSHOT = SYSTEM_PROMPT + _FEWSHOT
 
 
 def _sources(context):
@@ -28,7 +46,7 @@ def answer(question, client, on_event=None, system=None, allowed_tools=None, his
         if on_event:
             on_event({"type": kind, **data})
 
-    system = system or SYSTEM_PROMPT
+    system = system or (SYSTEM_PROMPT_FEWSHOT if os.getenv("PROMPT_VARIANT") == "fewshot" else SYSTEM_PROMPT)
     toolset = tools.TOOLS if allowed_tools is None else [t for t in tools.TOOLS if t["name"] in allowed_tools]
 
     emit("start", question=question)
