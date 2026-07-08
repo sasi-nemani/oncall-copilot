@@ -16,6 +16,10 @@ OPENAI_MODEL     = os.getenv("OPENAI_MODEL", "gpt-4o")
 # Gemini via Google's OpenAI-compatible endpoint (needs GEMINI_API_KEY). Tool-capable;
 # more generous free tier than OpenRouter — handy for the judge/verifier roles.
 GEMINI_MODEL     = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
+# Self-hosted models (Ollama / vLLM / any OpenAI-compatible server, e.g. your own GCP box).
+# No rate limits, no per-call cost — you pay for the GPU while it's up. Point at your endpoint:
+SELFHOSTED_BASE_URL = os.getenv("SELFHOSTED_BASE_URL", "http://localhost:11434/v1")
+SELFHOSTED_MODEL    = os.getenv("SELFHOSTED_MODEL", "mistral")
 # OpenRouter: pick from openrouter.ai/models. For the AGENT/tools you need a model
 # that supports tool calling (look for the "Tools" badge). For pure RAG/eval any model works.
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct")

@@ -1,0 +1,9 @@
+# Terraform local state + provider plugins — never commit (can hold resource detail/secrets).
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+# Your project id + IP live here — keep it local.
+terraform.tfvars
+*.auto.tfvars

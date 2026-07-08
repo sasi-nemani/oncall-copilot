@@ -135,6 +135,25 @@ class GeminiClient(OpenAIClient):
         self.model = config.GEMINI_MODEL
 
 
+class SelfHostedClient(OpenAIClient):
+    """A model you host yourself, behind any OpenAI-compatible server (Ollama, vLLM, TGI).
+
+    Same SDK, base_url points at your box (see SELFHOSTED_BASE_URL). The api_key is a
+    placeholder — a self-hosted server doesn't check it, but the SDK requires a non-empty value.
+    Why this exists: free hosted tiers rate-limit (429) and can't sustain a full 46-case eval;
+    a model you host has no per-minute cap, so the eval runs start-to-finish. You trade the
+    rate limit for a GPU bill that only ticks while the box is up — hence apply -> run -> destroy.
+    NOTE: the investigator role needs tool calling; verify your served model supports it
+    (Mistral/Qwen/Llama do via Ollama's /v1) before pointing the agent at it — the judge doesn't.
+    """
+    def __init__(self):
+        from openai import OpenAI
+        self.c = OpenAI(base_url=config.SELFHOSTED_BASE_URL,
+                        api_key=os.getenv("SELFHOSTED_API_KEY", "not-needed"),
+                        max_retries=3)
+        self.model = config.SELFHOSTED_MODEL
+
+
 def get_client(provider=None, model=None):
     provider = provider or config.PROVIDER
     if provider == "anthropic":
@@ -143,6 +162,8 @@ def get_client(provider=None, model=None):
         client = OpenRouterClient()
     elif provider in ("gemini", "google"):
         client = GeminiClient()
+    elif provider in ("selfhosted", "ollama", "vllm", "local"):
+        client = SelfHostedClient()
     else:
         client = OpenAIClient()
     if model:                      # optional override (used to pin the eval judge)
