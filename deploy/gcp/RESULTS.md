@@ -30,10 +30,17 @@ per-run summaries are preserved under [`results/`](./results/).
 | 3 | **qwen2.5:32b** | 32B | self-hosted L4 | qwen2.5:7b | _running_ | _running_ | — | — | — | — |
 | 4 | qwen2.5:14b + **hybrid retrieval** | 14B | self-hosted L4 | qwen2.5:7b | _pending_ | _pending_ | — | — | — | — |
 | 5 | qwen2.5:14b, **different-family judge** | 14B | self-hosted L4 | mistral-small | _pending_ | _pending_ | — | — | — | — |
-| 6 | **llama-3.3-70b** | 70B | OpenRouter (API) | _tbd_ | _queued_ | _queued_ | — | — | — | — |
+| 6 | **llama-3.3-70b** | 70B | OpenRouter (API) | **deepseek-chat** (independent) | **57%** | **61%** | 57% / 63% | 96% / 96% | 96% / 98% | 0 |
 
 _For reference: a frontier model (Claude Haiku) scored ~90% on an earlier version of this suite —
 the gap below is the self-hostable-vs-frontier capability gap, measured on the same harness._
+
+**Headline finding:** correctness tracks model capability almost monotonically —
+nemo-12B 43% → qwen-14B ~53% → llama-70B ~60% → (frontier ~90%). Tool-choice and safety saturate
+early (~90–98% even on small models); **answer correctness is the axis that separates models**, and
+it's the one that needs real reasoning. The cheapest way to move it was **a bigger model via API**
+(llama-70B, ~$0.30/run, independent judge) — not a bigger GPU. Self-hosting taught the deployment;
+the API bought the accuracy.
 
 ## What we did, and what each run tells us
 
@@ -65,9 +72,15 @@ swap). If correctness holds vs run #2, the Qwen-on-Qwen number was honest; if it
 run #2's correctness was family affinity. _Pending._
 
 ### 6 · llama-3.3-70b via OpenRouter (big model, API)
-A 70B is too big for one L4, but ~$0.30/run on OpenRouter. Tests whether a genuinely large model
-via API beats anything self-hostable on the L4. _Queued: key verified live (the earlier 401 was a
-stale `OPENROUTER_API_KEY` exported in the shell overriding `.env`; fixed by `load_dotenv(override=True)`)._
+A 70B is too big for one L4, but cheap on OpenRouter. **~59% pass (57% / 61%), correctness ~60%,
+tools 96%, safety 97% — the best result in the bake-off, and the most trustworthy**: it's the only
+run with a genuinely **independent judge** (Meta answerer graded by a DeepSeek judge), so unlike the
+same-family self-hosted rows it can't be inflated by style affinity. Both runs 0 errors, run via
+API in parallel with the GPU work (no hardware needed). Two runs cost well under $1.
+
+_Gotcha logged: the first attempt scored 0/46 — not rate limits, but `.env` pins every role to
+Gemini (dead free quota), and a too-aggressive `load_dotenv(override=True)` let those beat the
+command-line `openrouter` overrides. Fixed so `.env` wins for **API keys only**, not role vars._
 
 ## Methodology & honest caveats
 
