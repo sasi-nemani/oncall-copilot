@@ -3,7 +3,9 @@ import os
 # Load a local .env if python-dotenv is installed (optional — plain env vars work too).
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    # override=True so the .env file wins over any stale value already exported in the shell
+    # (e.g. an old OPENROUTER_API_KEY left in the environment) — .env is the source of truth here.
+    load_dotenv(override=True)
 except ImportError:
     pass
 
