@@ -34,7 +34,7 @@ SELFHOSTED_MODEL    = os.getenv("SELFHOSTED_MODEL", "mistral")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct")
 
 MAX_TOKENS = 1024          # cap response size (cost/latency control)
-MAX_AGENT_STEPS = 5        # safety stop so the agent loop can't run forever
+MAX_AGENT_STEPS = int(os.getenv("MAX_AGENT_STEPS", "5"))   # safety stop; env-tunable for experiments
 
 # Agent topology. "single" = the one investigator loop (default — the product path).
 # "multi"  = opt-in pipeline: triage -> investigator -> verifier -> postmortem (see src/agents.py).

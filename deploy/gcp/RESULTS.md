@@ -82,6 +82,28 @@ _Gotcha logged: the first attempt scored 0/46 — not rate limits, but `.env` pi
 Gemini (dead free quota), and a too-aggressive `load_dotenv(override=True)` let those beat the
 command-line `openrouter` overrides. Fixed so `.env` wins for **API keys only**, not role vars._
 
+## Harness experiments (model held fixed, one param varied) — a negative result
+
+Once the bake-off showed correctness is model-bound, the natural question: can a *harness* tweak
+lift correctness **without** a better model? Fixed answerer (**deepseek-chat**) + fixed judge
+(**llama-3.3-70b**, different family), vary one knob, single run each:
+
+| Config | Pass | correctness | tool_choice | safety |
+|---|---|---|---|---|
+| baseline (keyword retrieval, 5 agent steps) | **76%** | 83% | 89% | 93% |
+| hybrid retrieval (embeddings) | 74% | 80% | 93% | 93% |
+| more agent steps (8) | 76% | 80% | 93% | 98% |
+
+**Neither tweak improved the score** — hybrid retrieval was marginally worse, more steps flat
+(deltas within single-run noise, but there is clearly no *gain*). **Why:** the model is already
+capable (76% baseline) and the corpus is small, so keyword search already surfaces the right
+runbook and 5 steps already gather enough evidence — the tuned knobs had no slack to give.
+"Fix the instrument, not the model" pays off when the instrument is *broken* (see the earlier
+noisy-alert / bad-filing fixes at 43–56%); here the instrument was fine, so **the ceiling was the
+model, not the harness.** Reinforces the bake-off: you can't tune your way to the gate — you bring
+a better model. Kept as an honest negative result. (`MAX_AGENT_STEPS` is now env-tunable so this
+is reproducible.)
+
 ## Methodology & honest caveats
 
 - **Judge independence:** correctness is LLM-judged, so the judge is a variable, not ground truth.
