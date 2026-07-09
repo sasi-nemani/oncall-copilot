@@ -1,0 +1,13 @@
+From: oncall-bot@payments.example
+To: eng-oncall@payments.example
+Subject: [SEV2] auth incident INC-102 — login latency climbed after auth-a55
+Date: 2026-06-25T14:03:00Z
+
+An incident has been opened for auth.
+
+Summary: login latency climbed after auth-a55
+Suspected cause: auth-a55 added a synchronous call to a slow LDAP endpoint
+Resolution: feature-flagged the LDAP lookup off
+Timeline: opened 2026-06-25T14:03:00Z, resolved 2026-06-25T15:20:00Z
+
+-- On-Call Bot

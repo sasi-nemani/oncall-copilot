@@ -1,0 +1,42 @@
+[
+  {
+    "id": "INC-101",
+    "service": "checkout",
+    "severity": "SEV1",
+    "opened_at": "2026-06-24T09:12:00Z",
+    "closed_at": "2026-06-24T10:05:00Z",
+    "summary": "checkout 5xx spike right after the v93 deploy",
+    "root_cause": "a null-pointer in the coupon code path shipped in checkout-v93",
+    "fix": "rolled back checkout-v93"
+  },
+  {
+    "id": "INC-102",
+    "service": "auth",
+    "severity": "SEV2",
+    "opened_at": "2026-06-25T14:03:00Z",
+    "closed_at": "2026-06-25T15:20:00Z",
+    "summary": "login latency climbed after auth-a55",
+    "root_cause": "auth-a55 added a synchronous call to a slow LDAP endpoint",
+    "fix": "feature-flagged the LDAP lookup off"
+  },
+  {
+    "id": "INC-103",
+    "service": "payments",
+    "severity": "SEV1",
+    "opened_at": "2026-06-26T02:40:00Z",
+    "closed_at": "2026-06-26T03:35:00Z",
+    "summary": "payments failures from an upstream processor outage",
+    "root_cause": "the upstream card processor returned 503s during their maintenance window",
+    "fix": "failed over to the secondary processor"
+  },
+  {
+    "id": "INC-104",
+    "service": "search",
+    "severity": "SEV3",
+    "opened_at": "2026-06-27T11:15:00Z",
+    "closed_at": "2026-06-27T11:52:00Z",
+    "summary": "search slowdown after the s12 deploy",
+    "root_cause": "search-s12 disabled query caching by mistake",
+    "fix": "re-enabled the query cache"
+  }
+]

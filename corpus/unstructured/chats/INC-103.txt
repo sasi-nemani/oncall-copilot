@@ -1,0 +1,7 @@
+# #incident-payments — INC-103
+[2026-06-26T02:40:00Z] oncall-bot: :rotating_light: SEV1 — payments error_rate alert firing (INC-103)
+[2026-06-26T02:40:00Z] sara: ack, taking a look
+[2026-06-26T02:40:00Z] sara: payments started misbehaving — no deploys on our side, checking upstream
+[2026-06-26T02:40:00Z] mei: yeah, timing lines up. suspect the upstream card processor returned 503s during their maintenance window
+[2026-06-26T03:35:00Z] sara: failed over to the secondary processor. error_rate recovering now.
+[2026-06-26T03:35:00Z] sara: closing INC-103. postmortem to follow.

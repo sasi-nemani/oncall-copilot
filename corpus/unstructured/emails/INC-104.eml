@@ -1,0 +1,13 @@
+From: oncall-bot@payments.example
+To: eng-oncall@payments.example
+Subject: [SEV3] search incident INC-104 — search slowdown after the s12 deploy
+Date: 2026-06-27T11:15:00Z
+
+An incident has been opened for search.
+
+Summary: search slowdown after the s12 deploy
+Suspected cause: search-s12 disabled query caching by mistake
+Resolution: re-enabled the query cache
+Timeline: opened 2026-06-27T11:15:00Z, resolved 2026-06-27T11:52:00Z
+
+-- On-Call Bot
