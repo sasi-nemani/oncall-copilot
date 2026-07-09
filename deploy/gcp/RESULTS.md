@@ -37,7 +37,7 @@ per-run summaries are preserved under [`results/`](./results/).
 **nemo-12B ~35% → qwen-14B 50% → llama-70B ~59% → claude-sonnet-4 ~84%.** The **80% ship gate is
 passable**, and it takes a **frontier model** to clear it (row 7, verified with an *independent*
 judge — not self-graded). The axis that moves is **correctness** (43% → 87%); tool-choice and
-safety saturate early (~90–100% even on small models), because they need judgement, not raw
+safety saturate early (~80–100% even on small models), because they need judgement, not raw
 reasoning. The cheapest way to buy accuracy was **a better model via API**, not a bigger GPU —
 self-hosting taught the deployment, the API bought the correctness. The self-hostable/open models
 are *safe and sensible but not yet accurate enough to ship*; that gap is the whole story.
