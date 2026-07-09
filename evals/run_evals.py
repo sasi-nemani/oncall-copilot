@@ -41,15 +41,24 @@ def _eval_one(row):
     # instead of monkey-patching a global — so cases can run concurrently. Retries so one
     # flaky provider call (429/timeout) doesn't lose the case.
     called = []
+    # Per-case answerer telemetry — the agent emits a 'metrics' payload on its final event.
+    # We sum it (a multi-turn case emits one per turn, so summing is the correct total).
+    metrics_acc = {"calls": 0, "in_tokens": 0, "out_tokens": 0, "cost_usd": 0.0, "model_ms": 0.0}
 
     def on_ev(ev):
         if ev.get("type") == "tool_call":
             called.append(ev["name"])
+        m = ev.get("metrics")
+        if m:
+            for k in metrics_acc:
+                metrics_acc[k] += m.get(k, 0)
 
     last_err = None
     for attempt in range(3):
         try:
             called.clear()
+            for k in metrics_acc:                    # reset so a retried attempt can't double-count
+                metrics_acc[k] = 0
             if config.ONCALL_MODE == "multi":               # triage->investigate->verify->revise
                 ans = agents.run(row["question"], client, on_event=on_ev, make_postmortem=False)["answer"]
             elif row.get("turns"):
@@ -66,12 +75,14 @@ def _eval_one(row):
             tools_ok = all(t in called for t in required)   # only hard-require live-data tools
             safe = all(p.lower() not in ans.lower() for p in row["must_not_say"])
             return {"q": row["question"], "correct": correct, "tools_ok": tools_ok,
-                    "safe": safe, "ok": correct and tools_ok and safe, "err": None}
+                    "safe": safe, "ok": correct and tools_ok and safe, "err": None,
+                    "metrics": dict(metrics_acc)}
         except Exception as e:
             last_err = e
             if attempt < 2:                                 # back off before retrying —
                 time.sleep(15 * (attempt + 1))              # free tiers need breathing room
-    return {"q": row["question"], "ok": False, "err": f"{type(last_err).__name__}: {str(last_err)[:45]}"}
+    return {"q": row["question"], "ok": False, "err": f"{type(last_err).__name__}: {str(last_err)[:45]}",
+            "metrics": dict(metrics_acc)}
 
 
 def _print_row(r):
@@ -80,6 +91,18 @@ def _print_row(r):
     else:
         print(f"[{'PASS' if r['ok'] else 'FAIL'}] {r['q'][:45]:45}  "
               f"correct={r['correct']} tools={r['tools_ok']} safe={r['safe']}")
+
+
+def _pct(vals, p):
+    # Linear-interpolation percentile. p50 = median, p95 = the slow tail.
+    # We report percentiles, not the mean, because in production the tail is what pages you.
+    if not vals:
+        return 0.0
+    s = sorted(vals)
+    k = (len(s) - 1) * (p / 100.0)
+    lo = int(k)
+    hi = min(lo + 1, len(s) - 1)
+    return s[lo] + (s[hi] - s[lo]) * (k - lo)
 
 
 def run():
@@ -121,17 +144,30 @@ def run():
 
     dims = {"correctness": _dim("correct"), "tool_choice": _dim("tools_ok"), "safety": _dim("safe")}
 
+    # LLM-native metrics: cost + latency for the ANSWERER, over the cases we could score.
+    # (Only cases with real model calls; a fully-errored case has calls==0 and is skipped.)
+    mrows = [r["metrics"] for r in scored if r.get("metrics") and r["metrics"]["calls"]]
+    avg_cost = (sum(m["cost_usd"] for m in mrows) / len(mrows)) if mrows else 0.0
+    lats = [m["model_ms"] for m in mrows]
+    p50, p95 = _pct(lats, 50), _pct(lats, 95)
+
     print(f"\nAnswering: {getattr(client, 'model', '?')} (mode={config.ONCALL_MODE})  |  "
           f"Judge: {getattr(judge_client, 'model', '?')}")
     print("Suites:  " + "  ".join(f"{k}={v:.0%}" for k, v in dims.items())
           + f"  (over {len(scored)} scored cases)")
     print(f"Pass rate: {passed}/{len(rows)} = {rate:.0%}"
           + (f"   ({errored} case(s) errored out — likely rate limits)" if errored else ""))
+    if mrows:
+        total_tok = sum(m["in_tokens"] + m["out_tokens"] for m in mrows)
+        print(f"Cost:    ${avg_cost:.4f}/request avg  ·  ${sum(m['cost_usd'] for m in mrows):.3f} total  "
+              f"({total_tok:,} tokens over {len(mrows)} cases)")
+        print(f"Latency: p50 {p50/1000:.1f}s  ·  p95 {p95/1000:.1f}s  (answerer wall-clock per query)")
     # Ship gate: a per-suite threshold, NOT 100%-every-run (models are non-deterministic).
     print("GATE:", "OPEN" if rate >= 0.8 else "BLOCKED (fix before shipping)")
     return {"passed": passed, "n": len(rows), "rate": rate, "errored": errored,
             "dims": dims, "answerer": getattr(client, "model", "?"),
-            "judge": getattr(judge_client, "model", "?"), "mode": config.ONCALL_MODE}
+            "judge": getattr(judge_client, "model", "?"), "mode": config.ONCALL_MODE,
+            "avg_cost_usd": avg_cost, "p50_ms": p50, "p95_ms": p95}
 
 
 if __name__ == "__main__":

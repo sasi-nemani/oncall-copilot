@@ -1,6 +1,6 @@
 import os
 import re
-from src import retriever, tools, config, memory
+from src import retriever, tools, config, memory, pricing
 
 SYSTEM_PROMPT = (
     "You are On-Call Copilot, an assistant for on-call engineers.\n"
@@ -62,9 +62,19 @@ def answer(question, client, on_event=None, system=None, allowed_tools=None, his
     log.append({"type": "user",
                 "text": f"Question: {question}\n\nCONTEXT:\n{context or '(none found)'}"})
 
+    # Per-query telemetry — summed across EVERY model call this query makes (the agent may loop
+    # several times). Emitted on the final/stopped event so the eval + visualizer can read it.
+    metrics = {"calls": 0, "in_tokens": 0, "out_tokens": 0, "cost_usd": 0.0, "model_ms": 0.0}
     for step in range(1, config.MAX_AGENT_STEPS + 1):
         emit("llm_request", step=step)
         resp = client.complete(log, system=system, tools=toolset)
+        # tally this call into the per-query totals
+        u = resp.get("usage", {"in": 0, "out": 0})
+        metrics["calls"] += 1
+        metrics["in_tokens"] += u.get("in", 0)
+        metrics["out_tokens"] += u.get("out", 0)
+        metrics["model_ms"] += resp.get("latency_ms", 0.0)
+        metrics["cost_usd"] += pricing.cost_usd(client.model, u, provider=getattr(client, "provider", None))
         emit("llm_response", step=step, text=resp["text"],
              tool_calls=[{"name": c["name"], "args": c["args"]} for c in resp["tool_calls"]])
         if resp["tool_calls"]:
@@ -78,10 +88,10 @@ def answer(question, client, on_event=None, system=None, allowed_tools=None, his
                 results.append({"id": call["id"], "name": call["name"], "content": out})
             log.append({"type": "tool_results", "results": results})
             continue                                        # loop again with new evidence
-        emit("final", text=resp["text"], steps=step)
+        emit("final", text=resp["text"], steps=step, metrics=metrics)
         log.append({"type": "assistant_text", "text": resp["text"]})   # remember the answer
         return resp["text"]                                 # no tool call = final answer
-    emit("stopped", steps=config.MAX_AGENT_STEPS)
+    emit("stopped", steps=config.MAX_AGENT_STEPS, metrics=metrics)
     stopped = "Stopped after max steps without a grounded answer."
     log.append({"type": "assistant_text", "text": stopped})
     return stopped

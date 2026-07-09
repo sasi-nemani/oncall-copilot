@@ -1,5 +1,6 @@
 import os
 import json
+import time
 from src import config
 
 # ---- Neutral conversation log (provider-agnostic) ----
@@ -43,14 +44,20 @@ class AnthropicClient:
                       system=system, messages=self._messages(log))
         if tools:
             kwargs["tools"] = self._tools(tools)
+        t0 = time.monotonic()
         resp = self.c.messages.create(**kwargs)
+        latency_ms = (time.monotonic() - t0) * 1000
         text, calls = "", []
         for block in resp.content:
             if block.type == "text":
                 text += block.text
             elif block.type == "tool_use":
                 calls.append({"id": block.id, "name": block.name, "args": block.input})
-        return {"text": text, "tool_calls": calls}
+        # Token usage rides on every response — capture it for cost/telemetry.
+        # getattr(...) or 0 guards against a provider that omits usage (never trust the field exists).
+        u = getattr(resp, "usage", None)
+        usage = {"in": getattr(u, "input_tokens", 0) or 0, "out": getattr(u, "output_tokens", 0) or 0}
+        return {"text": text, "tool_calls": calls, "usage": usage, "latency_ms": latency_ms}
 
 
 class OpenAIClient:
@@ -91,7 +98,9 @@ class OpenAIClient:
         kwargs = dict(model=self.model, messages=self._messages(system, log))
         if tools:
             kwargs["tools"] = self._tools(tools)
+        t0 = time.monotonic()
         resp = self.c.chat.completions.create(**kwargs)
+        latency_ms = (time.monotonic() - t0) * 1000
         m = resp.choices[0].message
         calls = []
         if m.tool_calls:
@@ -104,7 +113,10 @@ class OpenAIClient:
                 if extra:
                     call["extra_content"] = extra
                 calls.append(call)
-        return {"text": m.content or "", "tool_calls": calls}
+        # OpenAI-style usage uses prompt_tokens / completion_tokens — normalise to the same in/out shape.
+        u = getattr(resp, "usage", None)
+        usage = {"in": getattr(u, "prompt_tokens", 0) or 0, "out": getattr(u, "completion_tokens", 0) or 0}
+        return {"text": m.content or "", "tool_calls": calls, "usage": usage, "latency_ms": latency_ms}
 
 
 class OpenRouterClient(OpenAIClient):
@@ -168,6 +180,7 @@ def get_client(provider=None, model=None):
         client = OpenAIClient()
     if model:                      # optional override (used to pin the eval judge)
         client.model = model
+    client.provider = provider     # remember it — pricing.cost_usd needs it to zero self-hosted
     return client
 
 
