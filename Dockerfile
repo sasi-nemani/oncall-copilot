@@ -15,7 +15,12 @@ COPY evals ./evals
 COPY data ./data
 COPY mcp_server ./mcp_server
 COPY viz ./viz
+COPY scripts ./scripts
 COPY guardrails.json models.json app.py trace_demo.py ./
+
+# Materialize the demo corpus + ingested index inside the image (seeded => deterministic), so
+# eval runs with RETRIEVAL_SOURCE=index work out of the box in a container.
+RUN python scripts/generate_corpus.py 40 && python -m src.ingest
 
 # 3) Run as a non-root user — least privilege: a compromised container isn't root.
 RUN useradd --create-home appuser && chown -R appuser /app
