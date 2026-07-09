@@ -1,7 +1,0 @@
-# #incident-search — INC-104
-[2026-06-27T11:15:00Z] oncall-bot: :rotating_light: SEV3 — search latency_p95 alert firing (INC-104)
-[2026-06-27T11:15:00Z] tom: ack, taking a look
-[2026-06-27T11:15:00Z] tom: search started misbehaving — anything deploy recently? I see search-s12 went out
-[2026-06-27T11:15:00Z] mei: yeah, timing lines up. suspect search-s12 disabled query caching by mistake
-[2026-06-27T11:52:00Z] tom: re-enabled the query cache. latency_p95 recovering now.
-[2026-06-27T11:52:00Z] tom: closing INC-104. postmortem to follow.

@@ -1,5 +1,0 @@
-id,service,metric,severity,state,fired_at,resolved_at
-ALRT-201,checkout,error_rate,SEV1,resolved,2026-06-24T09:12:00Z,2026-06-24T10:05:00Z
-ALRT-202,auth,latency_p95,SEV2,resolved,2026-06-25T14:03:00Z,2026-06-25T15:20:00Z
-ALRT-203,payments,error_rate,SEV1,resolved,2026-06-26T02:40:00Z,2026-06-26T03:35:00Z
-ALRT-204,search,latency_p95,SEV3,resolved,2026-06-27T11:15:00Z,2026-06-27T11:52:00Z

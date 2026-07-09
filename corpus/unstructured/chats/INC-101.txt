@@ -1,7 +1,0 @@
-# #incident-checkout — INC-101
-[2026-06-24T09:12:00Z] oncall-bot: :rotating_light: SEV1 — checkout error_rate alert firing (INC-101)
-[2026-06-24T09:12:00Z] ravi: ack, taking a look
-[2026-06-24T09:12:00Z] ravi: checkout started misbehaving — anything deploy recently? I see checkout-v93 went out
-[2026-06-24T09:12:00Z] mei: yeah, timing lines up. suspect a null-pointer in the coupon code path shipped in checkout-v93
-[2026-06-24T10:05:00Z] ravi: rolled back checkout-v93. error_rate recovering now.
-[2026-06-24T10:05:00Z] ravi: closing INC-101. postmortem to follow.

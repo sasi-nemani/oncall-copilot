@@ -1,7 +1,0 @@
-# #incident-auth — INC-102
-[2026-06-25T14:03:00Z] oncall-bot: :rotating_light: SEV2 — auth latency_p95 alert firing (INC-102)
-[2026-06-25T14:03:00Z] mei: ack, taking a look
-[2026-06-25T14:03:00Z] mei: auth started misbehaving — anything deploy recently? I see auth-a55 went out
-[2026-06-25T14:03:00Z] mei: yeah, timing lines up. suspect auth-a55 added a synchronous call to a slow LDAP endpoint
-[2026-06-25T15:20:00Z] mei: feature-flagged the LDAP lookup off. latency_p95 recovering now.
-[2026-06-25T15:20:00Z] mei: closing INC-102. postmortem to follow.
