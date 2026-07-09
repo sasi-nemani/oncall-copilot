@@ -1,13 +1,15 @@
 import os
 import glob
 import re
+import json
 from src import config
 
 # Resolve docs/ relative to the repo root (works no matter the cwd).
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+INDEX = os.path.join(ROOT, "index", "chunks.jsonl")   # output of the ingestion pipeline
 
 
-def _load_chunks():
+def _load_docs_chunks():
     # Chunk by SECTION (## heading), not by blank line. Keeping each section intact means
     # a runbook's "Remediation" travels as one coherent unit instead of being fragmented
     # and crowded out by title-only scraps — the biggest lever for retrieval quality here.
@@ -26,6 +28,29 @@ def _load_chunks():
             if len(sec) > 10:
                 chunks.append({"source": name, "text": f"[{title}] {sec}"})
     return chunks
+
+
+def _load_index_chunks():
+    # The ingestion pipeline's output (src/ingest.py): structured + unstructured, already chunked
+    # and serialized. Map each to the {source, text} shape the search functions below expect;
+    # metadata.source keeps citations resolvable (e.g. corpus/structured/alerts.csv).
+    chunks = []
+    with open(INDEX, encoding="utf-8") as f:
+        for line in f:
+            c = json.loads(line)
+            chunks.append({"source": c["metadata"].get("source", "index"), "text": c["text"]})
+    return chunks
+
+
+def _load_chunks():
+    # Which corpus the retriever serves:
+    #   RETRIEVAL_SOURCE=index  -> the ingested index (structured + unstructured), if it exists.
+    #   default                 -> docs/*.md — zero-setup, and what the eval suite is calibrated
+    #                              against. We keep the index OPT-IN so we never silently change
+    #                              what a graded system retrieves out from under the benchmark.
+    if os.getenv("RETRIEVAL_SOURCE") == "index" and os.path.exists(INDEX):
+        return _load_index_chunks()
+    return _load_docs_chunks()
 
 
 CHUNKS = _load_chunks()
