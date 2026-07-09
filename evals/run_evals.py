@@ -2,6 +2,7 @@ import json
 import os
 import re
 import time
+import datetime
 from src import llm, agent, agents, config
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -93,6 +94,26 @@ def _print_row(r):
               f"correct={r['correct']} tools={r['tools_ok']} safe={r['safe']}")
 
 
+def _write_report(meta, results):
+    # One inspectable artifact per run: config + aggregate + PER-CASE telemetry (verdict, cost,
+    # latency, tokens). Written to EVAL_REPORT_DIR (default logs/). In Docker: mount that dir to
+    # get the file out; in GCP: it also rides in stdout via Cloud Logging.
+    run_id = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    outdir = os.getenv("EVAL_REPORT_DIR", os.path.join(ROOT, "logs"))
+    os.makedirs(outdir, exist_ok=True)
+    cases = []
+    for r in results:
+        m = r.get("metrics") or {}
+        cases.append({"q": r["q"], "ok": r.get("ok"), "correct": r.get("correct"),
+                      "tools_ok": r.get("tools_ok"), "safe": r.get("safe"), "err": r.get("err"),
+                      "calls": m.get("calls", 0), "tokens": m.get("in_tokens", 0) + m.get("out_tokens", 0),
+                      "cost_usd": round(m.get("cost_usd", 0.0), 6), "latency_ms": round(m.get("model_ms", 0.0), 1)})
+    path = os.path.join(outdir, f"eval-{run_id}.json")
+    with open(path, "w") as f:
+        json.dump({"run_id": run_id, **meta, "cases": cases}, f, indent=2)
+    return path
+
+
 def _pct(vals, p):
     # Linear-interpolation percentile. p50 = median, p95 = the slow tail.
     # We report percentiles, not the mean, because in production the tail is what pages you.
@@ -167,10 +188,19 @@ def run():
         print(f"Latency: p50 {p50/1000:.1f}s  ·  p95 {p95/1000:.1f}s  (answerer wall-clock per query)")
     # Ship gate: a per-suite threshold, NOT 100%-every-run (models are non-deterministic).
     print("GATE:", "OPEN" if rate >= 0.8 else "BLOCKED (fix before shipping)")
-    return {"passed": passed, "n": len(rows), "rate": rate, "errored": errored,
-            "dims": dims, "answerer": getattr(client, "model", "?"),
+
+    # Persist the full per-run picture for inspection (logs + telemetry + per-case detail).
+    meta = {"dataset": os.path.relpath(dataset, ROOT), "answerer": getattr(client, "model", "?"),
             "judge": getattr(judge_client, "model", "?"), "mode": config.ONCALL_MODE,
-            "avg_cost_usd": avg_cost, "p50_ms": p50, "p95_ms": p95}
+            "retrieval_source": os.getenv("RETRIEVAL_SOURCE", "docs"),
+            "aggregate": {"passed": passed, "n": len(rows), "rate": round(rate, 4), "errored": errored,
+                          "dims": {k: round(v, 4) for k, v in dims.items()},
+                          "avg_cost_usd": round(avg_cost, 6), "p50_ms": round(p50, 1), "p95_ms": round(p95, 1),
+                          "total_tokens": sum(m["in_tokens"] + m["out_tokens"] for m in mrows)}}
+    report_path = _write_report(meta, results)
+    print(f"Report:  {os.path.relpath(report_path, ROOT)}  (config + aggregate + per-case cost/latency/verdict)")
+    return {**meta["aggregate"], "answerer": meta["answerer"], "judge": meta["judge"],
+            "mode": meta["mode"], "report": report_path}
 
 
 if __name__ == "__main__":
