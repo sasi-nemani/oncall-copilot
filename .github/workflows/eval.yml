@@ -1,12 +1,15 @@
 # Eval gate in CI.
 #
-# Two tiers, honestly separated by what they need:
+# Three tiers, honestly separated by what they need:
 #   1) deterministic  — no API key, no cost, runs on EVERY push/PR: unit tests
 #      (dataset schema, tool behaviour, and the broken-retriever tripwire) plus the
 #      retrieval suite behind an 80% recall gate.
-#   2) agent-eval     — needs a model key secret (GEMINI_API_KEY preferred, or
+#   2) docker-build   — no API key, runs on EVERY push/PR: builds the app image so a
+#      broken Dockerfile can't merge, and checks .env didn't leak into the image.
+#   3) agent-eval     — needs a model key secret (GEMINI_API_KEY preferred, or
 #      ANTHROPIC_API_KEY); manual dispatch only (free-tier quota makes per-push LLM
-#      evals unreliable), and skips politely when neither secret is configured.
+#      evals unreliable), runs the 46-case suite behind an 80% pass-rate gate, and
+#      skips politely when neither secret is configured.
 name: evals
 
 on:
@@ -29,6 +32,22 @@ jobs:
         run: python -m unittest discover tests -v
       - name: Retrieval suite (deterministic, keyless) — gate ≥80% recall
         run: python -m evals.retrieval_compare --mode keyword --gate 80
+
+  docker-build:
+    # Build the app image on EVERY push/PR so a broken Dockerfile can't merge.
+    # (Deploying it to Cloud Run is Phase B; here we just prove it builds and is clean.)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t oncall-copilot:ci .
+      - name: Sanity — code imports inside the image, and .env is NOT baked in
+        run: |
+          docker run --rm oncall-copilot:ci python -c "import src.agent, src.pricing, src.otel; print('image imports OK')"
+          if docker run --rm oncall-copilot:ci sh -c 'test -f /app/.env'; then
+            echo "::error::.env leaked into the image"; exit 1
+          fi
+          echo ".env correctly absent from image"
 
   agent-eval:
     # LLM-judged suites — MANUAL DISPATCH ONLY. On a free-tier key, an eval-per-push is

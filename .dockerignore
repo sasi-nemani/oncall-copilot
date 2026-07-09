@@ -1,0 +1,16 @@
+# NEVER bake these into the image.
+.env                # API keys — the #1 way secrets leak into containers
+.git                # history + any secrets ever committed
+deploy/gcp/*.tfstate*   # terraform state can hold secrets
+deploy/gcp/.terraform
+deploy/gcp/terraform.tfvars
+
+# Junk that just bloats the image / breaks reproducibility.
+__pycache__/
+*.pyc
+.pytest_cache/
+logs/
+*.log
+.DS_Store
+.venv/
+venv/

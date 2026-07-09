@@ -17,7 +17,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src import llm, agent, agents, trace, config  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PORT = int(os.getenv("VIZ_PORT", "8000"))
+# Honor Cloud Run's standard $PORT first, then VIZ_PORT, then 8000 for local dev.
+PORT = int(os.getenv("PORT", os.getenv("VIZ_PORT", "8000")))
+# Bind localhost by default (safe for local dev); a container/Cloud Run sets VIZ_HOST=0.0.0.0
+# so the server is reachable from outside the container.
+HOST = os.getenv("VIZ_HOST", "127.0.0.1")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -80,8 +84,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    print(f"On-Call Copilot — live visualizer on http://localhost:{PORT}  "
+    srv = ThreadingHTTPServer((HOST, PORT), Handler)
+    print(f"On-Call Copilot — live visualizer on http://{HOST}:{PORT}  "
           f"(default provider={config.PROVIDER}; Ctrl-C to stop)")
     try:
         srv.serve_forever()
