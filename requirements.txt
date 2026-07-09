@@ -10,3 +10,7 @@ python-dotenv>=1.0
 # NOT needed for the default keyword retriever; pulls in torch (heavy). Install with:
 #   pip install sentence-transformers
 # sentence-transformers>=2.2
+
+# Optional extra: OpenTelemetry tracing (OTEL_ENABLED=1). Code no-ops without it. Install with:
+#   pip install opentelemetry-sdk
+# opentelemetry-sdk>=1.20
