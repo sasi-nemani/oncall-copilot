@@ -106,7 +106,10 @@ def _pct(vals, p):
 
 
 def run():
-    rows = [json.loads(l) for l in open(os.path.join(ROOT, "evals", "dataset.jsonl"))]
+    # EVAL_DATASET lets us point the harness at a different test set (e.g. the corpus-derived
+    # v2 set) without touching code. Default stays the original 46-case suite.
+    dataset = os.getenv("EVAL_DATASET", os.path.join(ROOT, "evals", "dataset.jsonl"))
+    rows = [json.loads(l) for l in open(dataset)]
     # EVAL_WORKERS>1 runs cases concurrently (they're independent I/O-bound API calls).
     # Speeds up wall-clock a lot — but raises the request rate, so keep it modest (3-5) to
     # stay under provider rate limits; too high just triggers 429s and retries.
