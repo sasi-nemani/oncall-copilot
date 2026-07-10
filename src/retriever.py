@@ -164,6 +164,12 @@ def retrieve(question, k=4, mode=None):
         return vertex_retriever.retrieve(question, k)
     # mode: keyword | semantic | hybrid (defaults to config.RETRIEVAL_MODE).
     mode = mode or config.RETRIEVAL_MODE
+    # RETRIEVAL_ROUTE=id: query-aware routing. If the question names an exact identifier (INC-123, a
+    # service-v27 version), route it to KEYWORD — embeddings can't match an opaque token, but lexical
+    # search nails it. Everything else keeps the configured (e.g. hybrid) mode. This fixes the failure
+    # Run 5/6 exposed: naive fusion lets semantic noise dilute an exact-ID match. Routing > blind RRF.
+    if os.getenv("RETRIEVAL_ROUTE") == "id" and re.search(r"\bINC-\d+\b|\b\w+-v\d+\b", question):
+        mode = "keyword"
     # RETRIEVAL_FILTER=service: metadata-filtered retrieval. Keep the named service's chunks AND
     # float chunks mentioning the question's date to the top. Plain keyword/semantic ranking can't
     # weight the date (its tokens are common), so near-duplicate same-service incidents get confused

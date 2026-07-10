@@ -195,6 +195,24 @@ by date proximity), which is exactly what **Vertex AI Vector Search** provides (
   store is oversized anyway. This is the honest evidence for *when* Vertex is worth it (100k+ vectors),
   not proof we needed it. Cost ~$0.30, torn down; see [`docs/RUNS.md`](docs/RUNS.md) Run 5.
 
+### Hybrid + query routing, and the brute-force scaling study (Runs 6–7 + interview notes)
+- **Why:** Run 5 showed pure-semantic loses exact-ID matching. Test whether hybrid, then routing,
+  recovers it — and quantify *when* a managed ANN store is actually needed (for interview depth).
+- **Run 6 — hybrid (keyword+semantic RRF) + filter:** 93% (43/46). **A wash vs Run 4's 93%** — fixed
+  the 3 date cases but broke 2 exact-ID lookups: equal-weight RRF lets semantic dilute keyword's exact
+  hit. Lesson: the *fusion*, not the presence of two signals, decides.
+- **Run 7 — query-aware routing (`RETRIEVAL_ROUTE=id`):** 100% (46/46). Route exact identifiers
+  (`INC-\d+`, `service-v\d+`) → keyword; else hybrid+filter. Cleared the whole hardened set. Honest
+  caveat: single non-deterministic run, ±1–2 case wobble (gate is 80% for this reason). **Arc 4→7: at
+  fixed model + store, retrieval STRATEGY moved ~17 points; "add a store" (−10) and "add hybrid" (±0)
+  did not.**
+- **`scripts/bruteforce_scaling.py`:** measured brute-force query latency vs N (384-dim): 100k → 2.7ms,
+  500k → 13.5ms; crosses a 10ms budget at ~370k vectors. So ANN is a 10^5–10^6 tool; our 262 vectors
+  (0.02ms) are ~1000× below needing it — the same message as tree-AH refusing to build.
+- **`docs/VECTOR_SEARCH_NOTES.md`:** design notes + decision framework + Q&A — brute-force↔ANN crossover,
+  keyword/semantic/hybrid/routing tradeoffs (with our numbers + the INC-110 proof), Vertex specifics
+  (algorithms, shard↔machine, filtering, cost/no-scale-to-zero, the 3 preconditions we hit).
+
 ### Measured model comparison — cost/latency columns (`scripts/compare_models.py`)
 - **Why:** a pass-rate alone can't answer the business question "which model for the least money and
   latency?" The v1 model table's cost was never measured; per-request telemetry (`pricing.py`,
