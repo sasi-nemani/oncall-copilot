@@ -155,7 +155,11 @@ by date proximity), which is exactly what **Vertex AI Vector Search** provides (
 - **Verified offline:** for "checkout … 2026-05-02", the correct incident (INC-112) went from
   *not in the top-4* to **#1 retrieved**. This is the **local stand-in for a vector DB's metadata
   filter** (Vertex: filter by `service`, range by date) — proving the approach before spending on GCP.
-- **Baseline (pending):** re-run Run 3's config **+ `RETRIEVAL_FILTER=service`**; record the delta.
+- **Baseline (Run 4):** Run 3's config **+ `RETRIEVAL_FILTER=service`** → correctness **89% → 93%**
+  (43/46), 2 of the 5 disambiguation failures fixed at no extra token cost; the 3 remaining are the
+  *same* mode (symptom-based near-duplicates too close in date for the date-float heuristic — the
+  case a real vector index's date-range filter closes). See the full run journal in
+  [`docs/RUNS.md`](docs/RUNS.md) and the per-query view via `python scripts/walkthrough.py`.
 
 ### Glass-box walkthrough (`scripts/walkthrough.py`)
 - **Why:** a staff engineer's advice — showcase the *exact inputs*, every step, and what goes

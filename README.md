@@ -68,6 +68,32 @@ xychart-beta
    (LLM-as-judge correctness • tool-choice • safety • pass-rate gate)
 ```
 
+## See it work (glass box)
+
+Most demos show a result. This one shows the *machinery* — two views into the same system:
+
+**One query, every stage** — `python scripts/walkthrough.py` runs a single real test case and prints
+what goes IN and comes OUT at each step: how a postmortem became chunks and a CSV row became a
+searchable sentence, which chunks retrieval returned, every agent step and tool call, the final
+answer, the judge's reasoning + verdict, and how that becomes a number plus cost / tokens / latency.
+
+```
+STAGE 2 — RETRIEVAL — question IN, top chunks OUT
+   retrieved: [corpus/unstructured/postmortems/INC-100.md]   ...
+STAGE 3 — AGENT LOOP — what the model saw, decided, and called (each step)
+  [step 1] <-- model DECIDED to call tools: get_incident_timeline
+  [step 3] <-- model produced the FINAL answer (no more tools)
+STAGE 5 — VALIDATION — the judge (a DIFFERENT model) grades it
+  judge OUT: ... VERDICT: YES
+STAGE 6 — SCORING  ·  this query cost $0.00066 · 4803 tokens · 6310 ms · 3 model calls
+```
+
+**Every run, in order** — [`docs/RUNS.md`](docs/RUNS.md) is the journal of every eval run: the exact
+config, the numbers, **what changed from the run before and why**, and what each result taught us —
+from a broken examiner (65%, wrong-world tools) to a hardened one that detected a real retrieval fix
+(89% → 93%). Numbers come straight from `logs/eval-*.json`; negative results are kept, not hidden.
+`python scripts/log_run.py` turns any new report into a ready-to-paste entry.
+
 ## Run it
 
 ```bash
