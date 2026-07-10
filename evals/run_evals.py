@@ -45,6 +45,9 @@ def _eval_one(row):
     # Per-case answerer telemetry — the agent emits a 'metrics' payload on its final event.
     # We sum it (a multi-turn case emits one per turn, so summing is the correct total).
     metrics_acc = {"calls": 0, "in_tokens": 0, "out_tokens": 0, "cost_usd": 0.0, "model_ms": 0.0}
+    # RAG-only mode: historical/corpus questions are answered from RETRIEVAL, not live tools
+    # (whose data describes a different world). allowed_tools=[] disables tools for the answerer.
+    _allowed = [] if os.getenv("EVAL_RETRIEVAL_ONLY") == "1" else None
 
     def on_ev(ev):
         if ev.get("type") == "tool_call":
@@ -68,9 +71,9 @@ def _eval_one(row):
                 # Tool expectations apply across the whole conversation.
                 history = []
                 for turn in row["turns"]:
-                    ans = agent.answer(turn, client, on_event=on_ev, history=history)
+                    ans = agent.answer(turn, client, on_event=on_ev, history=history, allowed_tools=_allowed)
             else:
-                ans = agent.answer(row["question"], client, on_event=on_ev)
+                ans = agent.answer(row["question"], client, on_event=on_ev, allowed_tools=_allowed)
             correct = judge(ans, row["key_facts"])
             required = [t for t in row["expect_tools"] if t in LIVE_TOOLS]
             tools_ok = all(t in called for t in required)   # only hard-require live-data tools
