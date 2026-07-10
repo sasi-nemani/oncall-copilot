@@ -84,7 +84,9 @@ def build():
     print(f"  {n_svc} tagged with a service restrict · {n_date} tagged with a date numeric_restrict")
 
     # Upload to the FOLDER the index will read. Vertex ingests every file under gs://bucket/vectors/.
-    dest = f"{BUCKET}/{GCS_DIR}/vertex_datapoints.jsonl"
+    # NOTE: the file must end in .json / .csv / .avro — Vertex rejects a .jsonl extension outright
+    # (even though the CONTENT is JSON-lines). So it uploads as .json.
+    dest = f"{BUCKET}/{GCS_DIR}/vertex_datapoints.json"
     subprocess.run(["gcloud", "storage", "cp", OUT, dest], check=True)
     print(f"uploaded -> {dest}")
     # Save the dimension for the index-create step (avoids hardcoding it in two places).

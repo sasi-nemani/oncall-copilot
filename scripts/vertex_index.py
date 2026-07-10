@@ -49,14 +49,17 @@ def up():
     meta = json.load(open(META))
     s = _state()
 
-    # 1. INDEX — tree-AH ANN over our 384-dim normalized vectors; dot-product == cosine here.
+    # 1. INDEX — BRUTE-FORCE (exact) over our 384-dim normalized vectors; dot-product == cosine here.
+    # Brute force is the correct choice at this scale: tree-AH's tree build fails a precondition on a
+    # 262-vector corpus (too few points for its leaf sharding), and at hundreds of vectors exact search
+    # IS the right call — the ANN index only earns its keep at 100k+ vectors. Filtering (service + date)
+    # works identically on a brute-force index.
     if not s.get("index"):
-        print("[1/3] creating index (tree-AH) — this is the long step, ~30-50 min ...", flush=True)
-        index = ai.MatchingEngineIndex.create_tree_ah_index(
+        print("[1/3] creating index (brute-force, exact) — ~20-40 min ...", flush=True)
+        index = ai.MatchingEngineIndex.create_brute_force_index(
             display_name=DISPLAY,
             contents_delta_uri=meta["gcs_dir"],
             dimensions=meta["dimensions"],
-            approximate_neighbors_count=50,
             distance_measure_type="DOT_PRODUCT_DISTANCE",
             index_update_method="BATCH_UPDATE",
         )
