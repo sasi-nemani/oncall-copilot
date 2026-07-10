@@ -37,6 +37,21 @@ xychart-beta
 - **The "recalibration" is a reported *negative* result.** I hypothesised a two-sided critic would help; across **3 seeds** it sat ~10 pts *below* plain multi, so I **reverted it**. Knowing a change *didn't* work is the whole reason you measure.
 - **Caveat:** few-seed numbers — tighter error bars need more runs, but batch throughput (rate limits) caps that. Full method + per-change history: [eval scorecard](#eval-scorecard-real-reproducible) ↓ and [`IMPROVEMENTS.md`](./IMPROVEMENTS.md).
 
+### v2 — answerer cost vs correctness (measured, not estimated)
+
+Same idea, re-run on the **hardened 46-case v2 set** with per-request telemetry. Only the **answerer** changes; judge (`deepseek-chat`), dataset, retrieval (`RETRIEVAL_FILTER=service`, RAG-only) and the 80% gate are held fixed. Every cell traces to a `logs/eval-*.json` report — regenerate with `python scripts/compare_models.py`.
+
+| Answerer | Correctness | Pass | $/req | Total $ | Tokens | p50 / p95 | Gate |
+|---|---|---|---|---|---|---|---|
+| `llama-3.3-70b` (open, mid) | **93%** | 43/46 | $0.0002 | $0.008 | 42,130 | 5.4s / 13.3s | ✅ |
+| `gpt-4o-mini` (frontier, small) | **91%** | 42/46 | $0.0002 | $0.009 | 40,576 | **2.3s / 3.6s** | ✅ |
+| `llama-3.1-8b` (open, small) | **87%** | 40/46 | $0.0003 | $0.013 | 45,517 | 2.8s / **24.1s** | ✅ |
+
+**What the cost columns reveal that a pass-rate alone hides:**
+- **"Small" ≠ "cheap" once you measure end-to-end.** `llama-3.1-8b` is the *smallest* model but the **most expensive and slowest** here — it's verbose (more output tokens → higher $/req) and has a brutal p95 tail (24.1s). Per-token price is a trap; cost-per-*answered-request* is the number that matters.
+- **`gpt-4o-mini` is the latency winner** — within 2 points of the top on correctness at the same rounded cost, but **~4× lower p95** (3.6s vs 13.3s). If this were user-facing, that tail latency would likely decide it, not the 2-point accuracy gap.
+- **All three clear the gate**, so correctness alone wouldn't separate them — which is exactly why the cost/latency columns exist: they turn "which model?" into a defensible money-and-latency decision instead of a vibe.
+
 ## Architecture
 
 ```

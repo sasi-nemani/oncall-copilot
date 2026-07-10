@@ -170,3 +170,21 @@ by date proximity), which is exactly what **Vertex AI Vector Search** provides (
   Complements the live visualizer and the OTel trace with a static, pasteable "show your work."
 - **Verified:** ran one case end to end (llama answerer + deepseek judge) — the model grounded its
   answer in the retrieved postmortem even though a live tool returned wrong-world data; judge PASS.
+
+### Measured model comparison — cost/latency columns (`scripts/compare_models.py`)
+- **Why:** a pass-rate alone can't answer the business question "which model for the least money and
+  latency?" The v1 model table's cost was never measured; per-request telemetry (`pricing.py`,
+  captured in each report) lets us make it real instead of estimated.
+- **What / where:** `scripts/compare_models.py` reads N `logs/eval-*.json` reports (one per answerer,
+  judge/dataset/retrieval/gate held fixed), keeps the latest per answerer, and renders a markdown
+  table with correctness · pass · $/req · total $ · tokens · p50/p95 · gate, plus a "cheapest model
+  over the gate" line. Numbers come straight from the reports — nothing estimated. Table added to
+  README under "v2 — answerer cost vs correctness".
+- **Runs (v2 set, RAG-only + `RETRIEVAL_FILTER=service`, judge deepseek-chat, 46 cases):**
+  - `llama-3.3-70b` — 93% · $0.0002/req · p50 5.4s / p95 13.3s
+  - `gpt-4o-mini`   — 91% · $0.0002/req · p50 2.3s / **p95 3.6s** (latency winner)
+  - `llama-3.1-8b`  — 87% · **$0.0003/req** · p50 2.8s / **p95 24.1s**
+- **Finding (kept):** **"small" ≠ "cheap" end-to-end** — the smallest model (`llama-3.1-8b`) was the
+  *most* expensive per answered request (verbose → more output tokens) and the slowest (24s p95). All
+  three cleared the 80% gate, so cost + latency, not correctness, are the deciding columns — which is
+  the whole point of adding them.
