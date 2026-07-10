@@ -46,17 +46,26 @@ def chunk(text, size=600):
     return out
 
 
+def _service_by_incident():
+    # incident_id -> service, from the structured source of truth. Lets us tag UNSTRUCTURED chunks
+    # (chats/emails/postmortems, named INC-xxx) with a service too, so retrieval can filter by it.
+    path = os.path.join(CORPUS, "structured", "incidents.json")
+    return {r["id"]: r["service"] for r in json.load(open(path))} if os.path.exists(path) else {}
+
+
 def ingest_unstructured():
-    """Chunk every prose file under corpus/unstructured/ and tag it with source metadata."""
+    """Chunk every prose file under corpus/unstructured/ and tag it with source + service metadata."""
+    svc = _service_by_incident()
     out = []
     for path in sorted(glob.glob(os.path.join(CORPUS, "unstructured", "**", "*"), recursive=True)):
         if not os.path.isfile(path):
             continue
         doc_type = os.path.basename(os.path.dirname(path))   # chats / emails / postmortems
+        inc = _incident_id(path)
         for c in chunk(open(path).read()):
             out.append({"id": _id(c), "text": c, "metadata": {
-                "source": os.path.relpath(path, ROOT), "type": doc_type,
-                "modality": "unstructured", "incident_id": _incident_id(path)}})
+                "source": os.path.relpath(path, ROOT), "type": doc_type, "modality": "unstructured",
+                "incident_id": inc, "service": svc.get(inc)}})
     return out
 
 

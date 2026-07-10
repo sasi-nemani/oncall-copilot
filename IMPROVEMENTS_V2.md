@@ -28,6 +28,7 @@ CI-gated evals, Cloud Run/Vertex), with Mistral (LoRA) and NVIDIA (NeMo Guardrai
 | Env var | Meaning | Default |
 |---|---|---|
 | `RETRIEVAL_SOURCE` | `index` = retrieve from the ingested corpus (`index/chunks.jsonl`); else `docs/*.md` | docs |
+| `RETRIEVAL_FILTER` | `service` = metadata-filtered retrieval (filter to the named service + float the question's date to the top) | off |
 | `EVAL_DATASET` | which test set to run | `evals/dataset.jsonl` (46-case) |
 | `EVAL_RETRIEVAL_ONLY` | `1` = RAG-only (no live tools) — for historical/corpus questions | off |
 | `EVAL_REPORT_DIR` | where the per-run report JSON is written | `logs/` |

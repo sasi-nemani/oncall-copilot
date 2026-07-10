@@ -38,7 +38,8 @@ def _load_index_chunks():
     with open(INDEX, encoding="utf-8") as f:
         for line in f:
             c = json.loads(line)
-            chunks.append({"source": c["metadata"].get("source", "index"), "text": c["text"]})
+            chunks.append({"source": c["metadata"].get("source", "index"), "text": c["text"],
+                           "service": c["metadata"].get("service")})   # for RETRIEVAL_FILTER=service
     return chunks
 
 
@@ -146,10 +147,34 @@ def _select(question, k, mode):
     return _rrf([kw, sem_ranked])[:k]
 
 
+_SERVICES = {"payments", "checkout", "auth", "search", "notifications", "cart", "inventory", "shipping"}
+
+
+def _question_service(question):
+    ql = question.lower()
+    return next((s for s in _SERVICES if s in ql), None)
+
+
 def retrieve(question, k=4, mode=None):
     # mode: keyword | semantic | hybrid (defaults to config.RETRIEVAL_MODE).
     mode = mode or config.RETRIEVAL_MODE
-    idxs = _select(question, k, mode)
+    # RETRIEVAL_FILTER=service: metadata-filtered retrieval. Keep the named service's chunks AND
+    # float chunks mentioning the question's date to the top. Plain keyword/semantic ranking can't
+    # weight the date (its tokens are common), so near-duplicate same-service incidents get confused
+    # (the failure mode Run 3 exposed). This is the local stand-in for a vector DB's metadata
+    # filter (Vertex: filter by service, range by date).
+    if os.getenv("RETRIEVAL_FILTER") == "service":
+        pool = _select(question, max(k * 6, 30), mode)              # wide pool to filter + re-rank
+        svc = _question_service(question)
+        if svc:
+            pool = [i for i in pool if CHUNKS[i].get("service") == svc] or pool
+        m = re.search(r"\d{4}-\d{2}-\d{2}", question)               # a date in the question?
+        if m:
+            d = m.group()
+            pool.sort(key=lambda i: 0 if d in CHUNKS[i]["text"] else 1)   # stable: dated chunks first
+        idxs = pool[:k]
+    else:
+        idxs = _select(question, k, mode)
     if not idxs:
         return ""            # empty context -> the system prompt tells the model to refuse
     return "\n\n".join(f"[{CHUNKS[i]['source']}]\n{CHUNKS[i]['text']}" for i in idxs)
