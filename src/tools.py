@@ -6,10 +6,16 @@ import glob
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def _p(rel): return os.path.join(ROOT, rel)
 
-def _metrics(): return json.load(open(_p("data/metrics.json")))
-def _deploys(): return json.load(open(_p("data/deploys.json")))
-def _alerts(): return json.load(open(_p("data/alerts.json")))
-def _incidents(): return json.load(open(_p("data/incidents.json")))
+# Which "world" the live tools describe. Default `data/` is the original v1 demo world
+# (checkout-v93/auth-a55). Set TOOLS_DATA_DIR=data_v2 to point the tools at the world DERIVED from the
+# v2 corpus (scripts/build_tools_world.py) — so tools + retrieval describe the SAME incidents and the
+# agent can actually investigate a live v2-corpus incident instead of hitting a different world (Run 1).
+DATA = os.getenv("TOOLS_DATA_DIR", "data")
+
+def _metrics(): return json.load(open(_p(f"{DATA}/metrics.json")))
+def _deploys(): return json.load(open(_p(f"{DATA}/deploys.json")))
+def _alerts(): return json.load(open(_p(f"{DATA}/alerts.json")))
+def _incidents(): return json.load(open(_p(f"{DATA}/incidents.json")))
 
 
 def list_services():
@@ -51,7 +57,7 @@ def recent_deploys(service):
 def search_logs(query, service=None):
     out = []
     q = query.lower()
-    for line in open(_p("data/logs.jsonl")):
+    for line in open(_p(f"{DATA}/logs.jsonl")):
         rec = json.loads(line)
         # Match the query against the message OR the level, so a search for "ERROR"
         # finds ERROR-level lines even when the word isn't in the message text.

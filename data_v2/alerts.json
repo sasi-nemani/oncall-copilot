@@ -1,0 +1,10 @@
+[
+ {
+  "service": "checkout",
+  "name": "latency_p95",
+  "severity": "SEV1",
+  "status": "firing",
+  "since": "2026-06-29T18:15:00Z",
+  "summary": "checkout latency_p95 incident after checkout-v182"
+ }
+]

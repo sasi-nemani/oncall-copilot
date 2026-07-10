@@ -1,0 +1,264 @@
+{
+ "checkout": [
+  {
+   "id": "checkout-v182",
+   "at": "2026-06-29T18:15:00Z",
+   "author": "mei",
+   "status": "rolled_back"
+  },
+  {
+   "id": "checkout-v21",
+   "at": "2026-06-27T17:43:00Z",
+   "author": "mei",
+   "status": "rolled_back"
+  },
+  {
+   "id": "checkout-v67",
+   "at": "2026-05-26T23:57:00Z",
+   "author": "alex",
+   "status": "rolled_back"
+  },
+  {
+   "id": "checkout-v60",
+   "at": "2026-05-09T16:58:00Z",
+   "author": "ravi",
+   "status": "rolled_back"
+  },
+  {
+   "id": "checkout-v71",
+   "at": "2026-05-02T02:48:00Z",
+   "author": "jin",
+   "status": "rolled_back"
+  },
+  {
+   "id": "checkout-v116",
+   "at": "2026-04-22T00:00:00Z",
+   "author": "priya",
+   "status": "ok"
+  },
+  {
+   "id": "checkout-v184",
+   "at": "2026-04-19T12:38:00Z",
+   "author": "ravi",
+   "status": "rolled_back"
+  },
+  {
+   "id": "checkout-v45",
+   "at": "2026-03-20T00:00:00Z",
+   "author": "tom",
+   "status": "ok"
+  },
+  {
+   "id": "checkout-v126",
+   "at": "2026-03-18T00:00:00Z",
+   "author": "jin",
+   "status": "ok"
+  }
+ ],
+ "auth": [
+  {
+   "id": "auth-v129",
+   "at": "2026-06-26T00:00:00Z",
+   "author": "sara",
+   "status": "ok"
+  },
+  {
+   "id": "auth-v173",
+   "at": "2026-06-16T01:14:00Z",
+   "author": "noah",
+   "status": "rolled_back"
+  },
+  {
+   "id": "auth-v77",
+   "at": "2026-04-16T07:08:00Z",
+   "author": "ravi",
+   "status": "rolled_back"
+  }
+ ],
+ "inventory": [
+  {
+   "id": "inventory-v109",
+   "at": "2026-06-24T00:00:00Z",
+   "author": "omar",
+   "status": "ok"
+  },
+  {
+   "id": "inventory-v186",
+   "at": "2026-06-15T11:37:00Z",
+   "author": "sara",
+   "status": "rolled_back"
+  },
+  {
+   "id": "inventory-v147",
+   "at": "2026-06-04T00:00:00Z",
+   "author": "dana",
+   "status": "ok"
+  },
+  {
+   "id": "inventory-v150",
+   "at": "2026-04-27T00:00:00Z",
+   "author": "sara",
+   "status": "ok"
+  },
+  {
+   "id": "inventory-v76",
+   "at": "2026-04-10T07:16:00Z",
+   "author": "noah",
+   "status": "rolled_back"
+  },
+  {
+   "id": "inventory-v187",
+   "at": "2026-03-20T00:00:00Z",
+   "author": "tom",
+   "status": "ok"
+  },
+  {
+   "id": "inventory-v134",
+   "at": "2026-03-04T00:00:00Z",
+   "author": "alex",
+   "status": "ok"
+  }
+ ],
+ "notifications": [
+  {
+   "id": "notifications-v19",
+   "at": "2026-06-13T14:22:00Z",
+   "author": "ravi",
+   "status": "rolled_back"
+  },
+  {
+   "id": "notifications-v143",
+   "at": "2026-05-02T00:00:00Z",
+   "author": "tom",
+   "status": "ok"
+  },
+  {
+   "id": "notifications-v122",
+   "at": "2026-03-10T00:00:00Z",
+   "author": "noah",
+   "status": "ok"
+  }
+ ],
+ "payments": [
+  {
+   "id": "payments-v139",
+   "at": "2026-05-31T20:44:00Z",
+   "author": "jin",
+   "status": "rolled_back"
+  },
+  {
+   "id": "payments-v110",
+   "at": "2026-05-15T00:00:00Z",
+   "author": "omar",
+   "status": "ok"
+  },
+  {
+   "id": "payments-v158",
+   "at": "2026-04-26T21:13:00Z",
+   "author": "sara",
+   "status": "rolled_back"
+  },
+  {
+   "id": "payments-v157",
+   "at": "2026-04-18T00:00:00Z",
+   "author": "jin",
+   "status": "ok"
+  },
+  {
+   "id": "payments-v100",
+   "at": "2026-04-08T00:00:00Z",
+   "author": "alex",
+   "status": "ok"
+  }
+ ],
+ "cart": [
+  {
+   "id": "cart-v181",
+   "at": "2026-05-26T00:00:00Z",
+   "author": "alex",
+   "status": "ok"
+  },
+  {
+   "id": "cart-v123",
+   "at": "2026-05-18T00:00:00Z",
+   "author": "dana",
+   "status": "ok"
+  },
+  {
+   "id": "cart-v149",
+   "at": "2026-05-07T00:42:00Z",
+   "author": "mei",
+   "status": "rolled_back"
+  }
+ ],
+ "shipping": [
+  {
+   "id": "shipping-v63",
+   "at": "2026-05-22T02:38:00Z",
+   "author": "tom",
+   "status": "rolled_back"
+  },
+  {
+   "id": "shipping-v67",
+   "at": "2026-05-15T17:14:00Z",
+   "author": "mei",
+   "status": "rolled_back"
+  },
+  {
+   "id": "shipping-v150",
+   "at": "2026-05-09T00:05:00Z",
+   "author": "jin",
+   "status": "rolled_back"
+  },
+  {
+   "id": "shipping-v118",
+   "at": "2026-04-12T04:40:00Z",
+   "author": "jin",
+   "status": "rolled_back"
+  },
+  {
+   "id": "shipping-v125",
+   "at": "2026-04-03T00:00:00Z",
+   "author": "tom",
+   "status": "ok"
+  },
+  {
+   "id": "shipping-v169",
+   "at": "2026-03-28T16:16:00Z",
+   "author": "tom",
+   "status": "rolled_back"
+  },
+  {
+   "id": "shipping-v24",
+   "at": "2026-03-08T01:37:00Z",
+   "author": "dana",
+   "status": "rolled_back"
+  },
+  {
+   "id": "shipping-v116",
+   "at": "2026-03-08T00:00:00Z",
+   "author": "tom",
+   "status": "ok"
+  }
+ ],
+ "search": [
+  {
+   "id": "search-v27",
+   "at": "2026-05-05T12:43:00Z",
+   "author": "mei",
+   "status": "rolled_back"
+  },
+  {
+   "id": "search-v79",
+   "at": "2026-04-12T00:00:00Z",
+   "author": "priya",
+   "status": "ok"
+  },
+  {
+   "id": "search-v134",
+   "at": "2026-03-29T00:00:00Z",
+   "author": "noah",
+   "status": "ok"
+  }
+ ]
+}

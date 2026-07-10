@@ -1,0 +1,40 @@
+{"at": "2026-05-26T23:57:00Z", "level": "WARN", "service": "checkout", "msg": "checkout error_rate incident after checkout-v67 (a null-pointer in the coupon code path shipped in checkout-v67)"}
+{"at": "2026-05-31T20:44:00Z", "level": "WARN", "service": "payments", "msg": "payments error_rate incident after payments-v139 (a bad config in payments-v139 that lowered a timeout to near-zero)"}
+{"at": "2026-03-28T10:06:00Z", "level": "WARN", "service": "notifications", "msg": "notifications error_rate incident from an upstream issue (notifications pods OOM-killed by a slow memory leak)"}
+{"at": "2026-06-27T12:05:00Z", "level": "WARN", "service": "cart", "msg": "cart queue_depth incident from an upstream issue (a retry storm after the CDN slowed down)"}
+{"at": "2026-06-07T09:05:00Z", "level": "WARN", "service": "cart", "msg": "cart queue_depth incident from an upstream issue (the card processor returned 503s during a maintenance window)"}
+{"at": "2026-05-22T02:38:00Z", "level": "WARN", "service": "shipping", "msg": "shipping latency_p99 incident after shipping-v63 (shipping-v63 added a synchronous call to slow the pricing service)"}
+{"at": "2026-06-16T01:14:00Z", "level": "WARN", "service": "auth", "msg": "auth saturation incident after auth-v173 (auth-v173 disabled the circuit breaker by mistake)"}
+{"at": "2026-05-03T12:56:00Z", "level": "WARN", "service": "checkout", "msg": "checkout latency_p95 incident from an upstream issue (checkout pods OOM-killed by a slow memory leak)"}
+{"at": "2026-04-16T07:08:00Z", "level": "WARN", "service": "auth", "msg": "auth latency_p95 incident after auth-v77 (a bad config in auth-v77 that lowered a timeout to near-zero)"}
+{"at": "2026-04-19T12:38:00Z", "level": "WARN", "service": "checkout", "msg": "checkout latency_p95 incident after checkout-v184 (checkout-v184 disabled the retry budget by mistake)"}
+{"at": "2026-04-25T05:29:00Z", "level": "WARN", "service": "checkout", "msg": "checkout queue_depth incident from an upstream issue (a retry storm after S3 slowed down)"}
+{"at": "2026-05-09T16:58:00Z", "level": "WARN", "service": "checkout", "msg": "checkout latency_p99 incident after checkout-v60 (checkout-v60 disabled rate limiting by mistake)"}
+{"at": "2026-05-02T02:48:00Z", "level": "WARN", "service": "checkout", "msg": "checkout latency_p99 incident after checkout-v71 (checkout-v71 added a synchronous call to slow LDAP)"}
+{"at": "2026-06-05T23:44:00Z", "level": "WARN", "service": "auth", "msg": "auth latency_p99 incident from an upstream issue (a retry storm after the fraud API slowed down)"}
+{"at": "2026-05-15T17:14:00Z", "level": "WARN", "service": "shipping", "msg": "shipping queue_depth incident after shipping-v67 (shipping-v67 added a synchronous call to slow LDAP)"}
+{"at": "2026-03-31T08:42:00Z", "level": "WARN", "service": "payments", "msg": "payments latency_p95 incident from an upstream issue (connection-pool exhaustion in payments under load)"}
+{"at": "2026-05-24T13:22:00Z", "level": "WARN", "service": "shipping", "msg": "shipping latency_p95 incident from an upstream issue (shipping pods OOM-killed by a slow memory leak)"}
+{"at": "2026-03-25T17:28:00Z", "level": "WARN", "service": "checkout", "msg": "checkout error_rate incident from an upstream issue (checkout pods OOM-killed by a slow memory leak)"}
+{"at": "2026-05-09T00:05:00Z", "level": "WARN", "service": "shipping", "msg": "shipping latency_p95 incident after shipping-v150 (shipping-v150 added a synchronous call to slow LDAP)"}
+{"at": "2026-04-19T08:59:00Z", "level": "WARN", "service": "shipping", "msg": "shipping latency_p95 incident from an upstream issue (a retry storm after Redis slowed down)"}
+{"at": "2026-03-08T01:37:00Z", "level": "WARN", "service": "shipping", "msg": "shipping latency_p95 incident after shipping-v24 (shipping-v24 added a synchronous call to slow the card processor)"}
+{"at": "2026-06-29T18:15:00Z", "level": "ERROR", "service": "checkout", "msg": "checkout latency_p95 incident after checkout-v182 (a null-pointer in the coupon code path shipped in checkout-v182)"}
+{"at": "2026-04-10T07:16:00Z", "level": "WARN", "service": "inventory", "msg": "inventory queue_depth incident after inventory-v76 (inventory-v76 added a synchronous call to slow Kafka)"}
+{"at": "2026-03-28T16:16:00Z", "level": "WARN", "service": "shipping", "msg": "shipping latency_p99 incident after shipping-v169 (shipping-v169 disabled query caching by mistake)"}
+{"at": "2026-05-07T00:42:00Z", "level": "WARN", "service": "cart", "msg": "cart latency_p99 incident after cart-v149 (cart-v149 disabled the retry budget by mistake)"}
+{"at": "2026-05-17T06:45:00Z", "level": "WARN", "service": "auth", "msg": "auth latency_p99 incident from an upstream issue (connection-pool exhaustion in auth under load)"}
+{"at": "2026-04-12T04:40:00Z", "level": "WARN", "service": "shipping", "msg": "shipping latency_p99 incident after shipping-v118 (shipping-v118 added a synchronous call to slow the pricing service)"}
+{"at": "2026-06-15T11:37:00Z", "level": "WARN", "service": "inventory", "msg": "inventory queue_depth incident after inventory-v186 (inventory-v186 added a synchronous call to slow Redis)"}
+{"at": "2026-05-27T07:42:00Z", "level": "WARN", "service": "payments", "msg": "payments latency_p99 incident from an upstream issue (a retry storm after the card processor slowed down)"}
+{"at": "2026-03-23T23:59:00Z", "level": "WARN", "service": "auth", "msg": "auth latency_p95 incident from an upstream issue (auth pods OOM-killed by a slow memory leak)"}
+{"at": "2026-06-13T14:22:00Z", "level": "WARN", "service": "notifications", "msg": "notifications latency_p95 incident after notifications-v19 (notifications-v19 added a synchronous call to slow the CDN)"}
+{"at": "2026-05-05T12:43:00Z", "level": "WARN", "service": "search", "msg": "search saturation incident after search-v27 (search-v27 disabled rate limiting by mistake)"}
+{"at": "2026-05-16T13:22:00Z", "level": "WARN", "service": "notifications", "msg": "notifications latency_p95 incident from an upstream issue (notifications pods OOM-killed by a slow memory leak)"}
+{"at": "2026-06-27T17:43:00Z", "level": "WARN", "service": "checkout", "msg": "checkout saturation incident after checkout-v21 (checkout-v21 disabled query caching by mistake)"}
+{"at": "2026-05-04T09:42:00Z", "level": "WARN", "service": "cart", "msg": "cart queue_depth incident from an upstream issue (a retry storm after LDAP slowed down)"}
+{"at": "2026-06-24T05:39:00Z", "level": "WARN", "service": "auth", "msg": "auth latency_p95 incident from an upstream issue (a retry storm after the fraud API slowed down)"}
+{"at": "2026-04-26T21:13:00Z", "level": "WARN", "service": "payments", "msg": "payments latency_p99 incident after payments-v158 (a bad config in payments-v158 that lowered a timeout to near-zero)"}
+{"at": "2026-05-26T09:14:00Z", "level": "WARN", "service": "checkout", "msg": "checkout latency_p99 incident from an upstream issue (connection-pool exhaustion in checkout under load)"}
+{"at": "2026-06-22T20:36:00Z", "level": "WARN", "service": "search", "msg": "search saturation incident from an upstream issue (search pods OOM-killed by a slow memory leak)"}
+{"at": "2026-03-23T22:33:00Z", "level": "WARN", "service": "search", "msg": "search latency_p95 incident from an upstream issue (LDAP returned 503s during a maintenance window)"}

@@ -1,0 +1,498 @@
+{
+ "shipping": [
+  {
+   "at": "2026-03-08T01:37:00Z",
+   "event": "deploy shipping-v24 rolled out"
+  },
+  {
+   "at": "2026-03-08T01:37:00Z",
+   "event": "latency_p95 breached threshold (SEV2) \u2014 INC-120 opened"
+  },
+  {
+   "at": "2026-03-08T03:54:00Z",
+   "event": "resolved: rolled back shipping-v24 \u2014 INC-120 closed"
+  },
+  {
+   "at": "2026-03-28T16:16:00Z",
+   "event": "deploy shipping-v169 rolled out"
+  },
+  {
+   "at": "2026-03-28T16:16:00Z",
+   "event": "latency_p99 breached threshold (SEV1) \u2014 INC-123 opened"
+  },
+  {
+   "at": "2026-03-28T17:04:00Z",
+   "event": "resolved: rolled back shipping-v169 \u2014 INC-123 closed"
+  },
+  {
+   "at": "2026-04-12T04:40:00Z",
+   "event": "deploy shipping-v118 rolled out"
+  },
+  {
+   "at": "2026-04-12T04:40:00Z",
+   "event": "latency_p99 breached threshold (SEV1) \u2014 INC-126 opened"
+  },
+  {
+   "at": "2026-04-12T06:02:00Z",
+   "event": "resolved: reverted the config change in shipping-v118 \u2014 INC-126 closed"
+  },
+  {
+   "at": "2026-04-19T08:59:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-04-19T08:59:00Z",
+   "event": "latency_p95 breached threshold (SEV3) \u2014 INC-119 opened"
+  },
+  {
+   "at": "2026-04-19T11:10:00Z",
+   "event": "resolved: scaled shipping out and raised the pool size \u2014 INC-119 closed"
+  },
+  {
+   "at": "2026-05-09T00:05:00Z",
+   "event": "deploy shipping-v150 rolled out"
+  },
+  {
+   "at": "2026-05-09T00:05:00Z",
+   "event": "latency_p95 breached threshold (SEV1) \u2014 INC-118 opened"
+  },
+  {
+   "at": "2026-05-09T01:20:00Z",
+   "event": "resolved: feature-flagged query caching off \u2014 INC-118 closed"
+  },
+  {
+   "at": "2026-05-15T17:14:00Z",
+   "event": "deploy shipping-v67 rolled out"
+  },
+  {
+   "at": "2026-05-15T17:14:00Z",
+   "event": "queue_depth breached threshold (SEV3) \u2014 INC-114 opened"
+  },
+  {
+   "at": "2026-05-15T19:59:00Z",
+   "event": "resolved: rolled back shipping-v67 \u2014 INC-114 closed"
+  },
+  {
+   "at": "2026-05-22T02:38:00Z",
+   "event": "deploy shipping-v63 rolled out"
+  },
+  {
+   "at": "2026-05-22T02:38:00Z",
+   "event": "latency_p99 breached threshold (SEV2) \u2014 INC-105 opened"
+  },
+  {
+   "at": "2026-05-22T05:35:00Z",
+   "event": "resolved: reverted the config change in shipping-v63 \u2014 INC-105 closed"
+  },
+  {
+   "at": "2026-05-24T13:22:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-05-24T13:22:00Z",
+   "event": "latency_p95 breached threshold (SEV3) \u2014 INC-116 opened"
+  },
+  {
+   "at": "2026-05-24T15:25:00Z",
+   "event": "resolved: scaled shipping out and raised the pool size \u2014 INC-116 closed"
+  }
+ ],
+ "search": [
+  {
+   "at": "2026-03-23T22:33:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-03-23T22:33:00Z",
+   "event": "latency_p95 breached threshold (SEV3) \u2014 INC-139 opened"
+  },
+  {
+   "at": "2026-03-24T00:46:00Z",
+   "event": "resolved: restarted the affected search pods \u2014 INC-139 closed"
+  },
+  {
+   "at": "2026-05-05T12:43:00Z",
+   "event": "deploy search-v27 rolled out"
+  },
+  {
+   "at": "2026-05-05T12:43:00Z",
+   "event": "saturation breached threshold (SEV2) \u2014 INC-131 opened"
+  },
+  {
+   "at": "2026-05-05T15:15:00Z",
+   "event": "resolved: rolled back search-v27 \u2014 INC-131 closed"
+  },
+  {
+   "at": "2026-06-22T20:36:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-06-22T20:36:00Z",
+   "event": "saturation breached threshold (SEV3) \u2014 INC-138 opened"
+  },
+  {
+   "at": "2026-06-22T21:40:00Z",
+   "event": "resolved: scaled search out and raised the pool size \u2014 INC-138 closed"
+  }
+ ],
+ "auth": [
+  {
+   "at": "2026-03-23T23:59:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-03-23T23:59:00Z",
+   "event": "latency_p95 breached threshold (SEV2) \u2014 INC-129 opened"
+  },
+  {
+   "at": "2026-03-24T01:39:00Z",
+   "event": "resolved: restarted the affected auth pods \u2014 INC-129 closed"
+  },
+  {
+   "at": "2026-04-16T07:08:00Z",
+   "event": "deploy auth-v77 rolled out"
+  },
+  {
+   "at": "2026-04-16T07:08:00Z",
+   "event": "latency_p95 breached threshold (SEV3) \u2014 INC-108 opened"
+  },
+  {
+   "at": "2026-04-16T09:33:00Z",
+   "event": "resolved: rolled back auth-v77 \u2014 INC-108 closed"
+  },
+  {
+   "at": "2026-05-17T06:45:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-05-17T06:45:00Z",
+   "event": "latency_p99 breached threshold (SEV1) \u2014 INC-125 opened"
+  },
+  {
+   "at": "2026-05-17T08:27:00Z",
+   "event": "resolved: restarted the affected auth pods \u2014 INC-125 closed"
+  },
+  {
+   "at": "2026-06-05T23:44:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-06-05T23:44:00Z",
+   "event": "latency_p99 breached threshold (SEV3) \u2014 INC-113 opened"
+  },
+  {
+   "at": "2026-06-06T00:50:00Z",
+   "event": "resolved: scaled auth out and raised the pool size \u2014 INC-113 closed"
+  },
+  {
+   "at": "2026-06-16T01:14:00Z",
+   "event": "deploy auth-v173 rolled out"
+  },
+  {
+   "at": "2026-06-16T01:14:00Z",
+   "event": "saturation breached threshold (SEV3) \u2014 INC-106 opened"
+  },
+  {
+   "at": "2026-06-16T01:37:00Z",
+   "event": "resolved: feature-flagged the circuit breaker off \u2014 INC-106 closed"
+  },
+  {
+   "at": "2026-06-24T05:39:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-06-24T05:39:00Z",
+   "event": "latency_p95 breached threshold (SEV3) \u2014 INC-135 opened"
+  },
+  {
+   "at": "2026-06-24T08:19:00Z",
+   "event": "resolved: scaled auth out and raised the pool size \u2014 INC-135 closed"
+  }
+ ],
+ "checkout": [
+  {
+   "at": "2026-03-25T17:28:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-03-25T17:28:00Z",
+   "event": "error_rate breached threshold (SEV3) \u2014 INC-117 opened"
+  },
+  {
+   "at": "2026-03-25T18:18:00Z",
+   "event": "resolved: failed over to a secondary LDAP \u2014 INC-117 closed"
+  },
+  {
+   "at": "2026-04-19T12:38:00Z",
+   "event": "deploy checkout-v184 rolled out"
+  },
+  {
+   "at": "2026-04-19T12:38:00Z",
+   "event": "latency_p95 breached threshold (SEV3) \u2014 INC-109 opened"
+  },
+  {
+   "at": "2026-04-19T14:52:00Z",
+   "event": "resolved: reverted the config change in checkout-v184 \u2014 INC-109 closed"
+  },
+  {
+   "at": "2026-04-25T05:29:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-04-25T05:29:00Z",
+   "event": "queue_depth breached threshold (SEV2) \u2014 INC-110 opened"
+  },
+  {
+   "at": "2026-04-25T05:44:00Z",
+   "event": "resolved: restarted the affected checkout pods \u2014 INC-110 closed"
+  },
+  {
+   "at": "2026-05-02T02:48:00Z",
+   "event": "deploy checkout-v71 rolled out"
+  },
+  {
+   "at": "2026-05-02T02:48:00Z",
+   "event": "latency_p99 breached threshold (SEV2) \u2014 INC-112 opened"
+  },
+  {
+   "at": "2026-05-02T05:19:00Z",
+   "event": "resolved: rolled back checkout-v71 \u2014 INC-112 closed"
+  },
+  {
+   "at": "2026-05-03T12:56:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-05-03T12:56:00Z",
+   "event": "latency_p95 breached threshold (SEV3) \u2014 INC-107 opened"
+  },
+  {
+   "at": "2026-05-03T15:55:00Z",
+   "event": "resolved: failed over to a secondary S3 \u2014 INC-107 closed"
+  },
+  {
+   "at": "2026-05-09T16:58:00Z",
+   "event": "deploy checkout-v60 rolled out"
+  },
+  {
+   "at": "2026-05-09T16:58:00Z",
+   "event": "latency_p99 breached threshold (SEV3) \u2014 INC-111 opened"
+  },
+  {
+   "at": "2026-05-09T17:13:00Z",
+   "event": "resolved: feature-flagged rate limiting off \u2014 INC-111 closed"
+  },
+  {
+   "at": "2026-05-26T09:14:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-05-26T09:14:00Z",
+   "event": "latency_p99 breached threshold (SEV3) \u2014 INC-137 opened"
+  },
+  {
+   "at": "2026-05-26T10:19:00Z",
+   "event": "resolved: failed over to a secondary S3 \u2014 INC-137 closed"
+  },
+  {
+   "at": "2026-05-26T23:57:00Z",
+   "event": "deploy checkout-v67 rolled out"
+  },
+  {
+   "at": "2026-05-26T23:57:00Z",
+   "event": "error_rate breached threshold (SEV3) \u2014 INC-100 opened"
+  },
+  {
+   "at": "2026-05-27T02:31:00Z",
+   "event": "resolved: reverted the config change in checkout-v67 \u2014 INC-100 closed"
+  },
+  {
+   "at": "2026-06-27T17:43:00Z",
+   "event": "deploy checkout-v21 rolled out"
+  },
+  {
+   "at": "2026-06-27T17:43:00Z",
+   "event": "saturation breached threshold (SEV3) \u2014 INC-133 opened"
+  },
+  {
+   "at": "2026-06-27T18:48:00Z",
+   "event": "resolved: feature-flagged query caching off \u2014 INC-133 closed"
+  },
+  {
+   "at": "2026-06-29T18:15:00Z",
+   "event": "deploy checkout-v182 rolled out"
+  },
+  {
+   "at": "2026-06-29T18:15:00Z",
+   "event": "latency_p95 breached threshold (SEV1) \u2014 INC-121 opened"
+  },
+  {
+   "at": "2026-06-29T18:15:00Z",
+   "event": "ONGOING \u2014 investigating INC-121 (alert firing)"
+  }
+ ],
+ "notifications": [
+  {
+   "at": "2026-03-28T10:06:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-03-28T10:06:00Z",
+   "event": "error_rate breached threshold (SEV2) \u2014 INC-102 opened"
+  },
+  {
+   "at": "2026-03-28T10:44:00Z",
+   "event": "resolved: failed over to a secondary S3 \u2014 INC-102 closed"
+  },
+  {
+   "at": "2026-05-16T13:22:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-05-16T13:22:00Z",
+   "event": "latency_p95 breached threshold (SEV3) \u2014 INC-132 opened"
+  },
+  {
+   "at": "2026-05-16T14:57:00Z",
+   "event": "resolved: restarted the affected notifications pods \u2014 INC-132 closed"
+  },
+  {
+   "at": "2026-06-13T14:22:00Z",
+   "event": "deploy notifications-v19 rolled out"
+  },
+  {
+   "at": "2026-06-13T14:22:00Z",
+   "event": "latency_p95 breached threshold (SEV3) \u2014 INC-130 opened"
+  },
+  {
+   "at": "2026-06-13T15:55:00Z",
+   "event": "resolved: rolled back notifications-v19 \u2014 INC-130 closed"
+  }
+ ],
+ "payments": [
+  {
+   "at": "2026-03-31T08:42:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-03-31T08:42:00Z",
+   "event": "latency_p95 breached threshold (SEV1) \u2014 INC-115 opened"
+  },
+  {
+   "at": "2026-03-31T11:01:00Z",
+   "event": "resolved: restarted the affected payments pods \u2014 INC-115 closed"
+  },
+  {
+   "at": "2026-04-26T21:13:00Z",
+   "event": "deploy payments-v158 rolled out"
+  },
+  {
+   "at": "2026-04-26T21:13:00Z",
+   "event": "latency_p99 breached threshold (SEV2) \u2014 INC-136 opened"
+  },
+  {
+   "at": "2026-04-26T23:38:00Z",
+   "event": "resolved: reverted the config change in payments-v158 \u2014 INC-136 closed"
+  },
+  {
+   "at": "2026-05-27T07:42:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-05-27T07:42:00Z",
+   "event": "latency_p99 breached threshold (SEV2) \u2014 INC-128 opened"
+  },
+  {
+   "at": "2026-05-27T08:23:00Z",
+   "event": "resolved: restarted the affected payments pods \u2014 INC-128 closed"
+  },
+  {
+   "at": "2026-05-31T20:44:00Z",
+   "event": "deploy payments-v139 rolled out"
+  },
+  {
+   "at": "2026-05-31T20:44:00Z",
+   "event": "error_rate breached threshold (SEV1) \u2014 INC-101 opened"
+  },
+  {
+   "at": "2026-05-31T23:18:00Z",
+   "event": "resolved: rolled back payments-v139 \u2014 INC-101 closed"
+  }
+ ],
+ "inventory": [
+  {
+   "at": "2026-04-10T07:16:00Z",
+   "event": "deploy inventory-v76 rolled out"
+  },
+  {
+   "at": "2026-04-10T07:16:00Z",
+   "event": "queue_depth breached threshold (SEV3) \u2014 INC-122 opened"
+  },
+  {
+   "at": "2026-04-10T09:12:00Z",
+   "event": "resolved: reverted the config change in inventory-v76 \u2014 INC-122 closed"
+  },
+  {
+   "at": "2026-06-15T11:37:00Z",
+   "event": "deploy inventory-v186 rolled out"
+  },
+  {
+   "at": "2026-06-15T11:37:00Z",
+   "event": "queue_depth breached threshold (SEV1) \u2014 INC-127 opened"
+  },
+  {
+   "at": "2026-06-15T14:13:00Z",
+   "event": "resolved: feature-flagged the retry budget off \u2014 INC-127 closed"
+  }
+ ],
+ "cart": [
+  {
+   "at": "2026-05-04T09:42:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-05-04T09:42:00Z",
+   "event": "queue_depth breached threshold (SEV2) \u2014 INC-134 opened"
+  },
+  {
+   "at": "2026-05-04T11:41:00Z",
+   "event": "resolved: scaled cart out and raised the pool size \u2014 INC-134 closed"
+  },
+  {
+   "at": "2026-05-07T00:42:00Z",
+   "event": "deploy cart-v149 rolled out"
+  },
+  {
+   "at": "2026-05-07T00:42:00Z",
+   "event": "latency_p99 breached threshold (SEV2) \u2014 INC-124 opened"
+  },
+  {
+   "at": "2026-05-07T03:18:00Z",
+   "event": "resolved: reverted the config change in cart-v149 \u2014 INC-124 closed"
+  },
+  {
+   "at": "2026-06-07T09:05:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-06-07T09:05:00Z",
+   "event": "queue_depth breached threshold (SEV2) \u2014 INC-104 opened"
+  },
+  {
+   "at": "2026-06-07T10:19:00Z",
+   "event": "resolved: scaled cart out and raised the pool size \u2014 INC-104 closed"
+  },
+  {
+   "at": "2026-06-27T12:05:00Z",
+   "event": "deploy issue rolled out"
+  },
+  {
+   "at": "2026-06-27T12:05:00Z",
+   "event": "queue_depth breached threshold (SEV2) \u2014 INC-103 opened"
+  },
+  {
+   "at": "2026-06-27T14:41:00Z",
+   "event": "resolved: restarted the affected cart pods \u2014 INC-103 closed"
+  }
+ ]
+}
