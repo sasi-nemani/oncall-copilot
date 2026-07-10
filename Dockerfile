@@ -18,9 +18,10 @@ COPY viz ./viz
 COPY scripts ./scripts
 COPY guardrails.json models.json app.py trace_demo.py ./
 
-# Materialize the demo corpus + ingested index inside the image (seeded => deterministic), so
-# eval runs with RETRIEVAL_SOURCE=index work out of the box in a container.
-RUN python scripts/generate_corpus.py 40 && python -m src.ingest
+# Materialize corpus + index + eval set inside the image, all from ONE deterministic build
+# (seeded, fixed base date). Regenerating the eval set here — not just copying the committed one —
+# guarantees the questions can never drift from the corpus they're built against.
+RUN python scripts/generate_corpus.py 40 && python -m src.ingest && python scripts/generate_evalset.py
 
 # 3) Run as a non-root user — least privilege: a compromised container isn't root.
 RUN useradd --create-home appuser && chown -R appuser /app
