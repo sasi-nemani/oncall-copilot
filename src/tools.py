@@ -26,6 +26,11 @@ def list_services():
 THRESHOLDS = {
     "error_rate":     {"warn": 1.0, "crit": 2.0, "unit": "%"},
     "p99_latency_ms": {"warn": 500, "crit": 1000, "unit": "ms"},
+    # v2 corpus metric names (so get_metric can flag a real breach, not just say "rising"):
+    "latency_p95":    {"warn": 500, "crit": 1000, "unit": "ms"},
+    "latency_p99":    {"warn": 800, "crit": 1500, "unit": "ms"},
+    "queue_depth":    {"warn": 1000, "crit": 5000, "unit": ""},
+    "saturation":     {"warn": 70, "crit": 90, "unit": "%"},
 }
 
 def get_metric(service, name):

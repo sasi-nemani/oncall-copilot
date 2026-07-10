@@ -24,17 +24,23 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CORPUS = os.path.join(ROOT, "corpus", "structured")
 OUT = os.path.join(ROOT, "data_v2")
 
-# Fixed metric series (no RNG -> deterministic). Threshold-aware so get_metric reads them correctly:
-# error_rate warn/crit = 1/2 %, p99_latency_ms = 500/1000 ms (src/tools.py THRESHOLDS).
+# Fixed metric series (no RNG -> deterministic), one per corpus metric. Threshold-aware: baseline sits
+# below `warn` and breach ends above `crit` (src/tools.py THRESHOLDS) so get_metric reads OK vs CRITICAL.
 BASELINE = {
-    "error_rate":     [0.2, 0.3, 0.2, 0.3, 0.2, 0.3, 0.2, 0.3],       # healthy, stable
-    "p99_latency_ms": [200, 210, 190, 205, 200, 205, 195, 205],
+    "error_rate":  [0.2, 0.3, 0.2, 0.3, 0.2, 0.3, 0.2, 0.3],          # crit 2.0%
+    "latency_p95": [200, 210, 190, 205, 200, 205, 195, 205],          # crit 1000ms
+    "latency_p99": [400, 420, 390, 410, 400, 415, 395, 410],          # crit 1500ms
+    "queue_depth": [100, 120, 90, 110, 100, 115, 95, 110],            # crit 5000
+    "saturation":  [30, 35, 28, 33, 30, 34, 29, 32],                  # crit 90%
 }
 BREACH = {
-    "error_rate":     [0.3, 0.4, 0.9, 1.6, 2.3, 3.1, 3.6, 3.8],       # rising into CRITICAL
-    "p99_latency_ms": [210, 260, 430, 700, 980, 1180, 1350, 1440],
+    "error_rate":  [0.3, 0.4, 0.9, 1.6, 2.3, 3.1, 3.6, 3.8],          # -> CRITICAL
+    "latency_p95": [210, 260, 430, 700, 980, 1180, 1350, 1440],
+    "latency_p99": [420, 560, 820, 1180, 1520, 1900, 2200, 2400],
+    "queue_depth": [200, 500, 1200, 2500, 4000, 5500, 6800, 7200],
+    "saturation":  [30, 45, 60, 75, 85, 92, 96, 98],
 }
-GENERIC_BREACH = [10, 14, 28, 51, 72, 88, 95, 98]                     # for non-threshold metrics
+GENERIC_BREACH = [10, 14, 28, 51, 72, 88, 95, 98]                     # fallback for any other metric
 
 
 def _load():
