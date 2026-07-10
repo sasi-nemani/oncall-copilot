@@ -27,63 +27,65 @@ def _reports(paths):
     return [json.load(open(p)) for p in paths]
 
 
-def _latest_per_answerer(reports):
-    # Reports are keyed by answerer; a later run for the same model supersedes an earlier one.
-    # run_id is a sortable timestamp string, so max(run_id) wins.
+def _group_by_answerer(reports):
+    # Keep ALL runs per model (we run each ≥2x to see run-to-run variance on a non-deterministic system).
     by_model = {}
     for r in reports:
-        m = r.get("answerer", "?")
-        if m not in by_model or r.get("run_id", "") > by_model[m].get("run_id", ""):
-            by_model[m] = r
+        by_model.setdefault(r.get("answerer", "?"), []).append(r)
     return by_model
 
 
-def _row(r):
-    a = r["aggregate"]
-    corr = a["dims"]["correctness"]
+def _mean(xs):
+    return sum(xs) / len(xs) if xs else 0.0
+
+
+def _agg(answerer, reps):
+    # Aggregate N runs of one model into mean + range, so the table shows both the central value and
+    # how much a single run could have misled us.
+    corr = [r["aggregate"]["dims"]["correctness"] for r in reps]
+    cost = [r["aggregate"].get("avg_cost_usd", 0.0) for r in reps]
+    p50 = [r["aggregate"].get("p50_ms", 0) / 1000 for r in reps]
+    p95 = [r["aggregate"].get("p95_ms", 0) / 1000 for r in reps]
+    n = reps[0]["aggregate"].get("n", 0)
     return {
-        "answerer": r.get("answerer", "?"),
-        "corr": corr,
-        "passed": a.get("passed"), "n": a.get("n"),
-        "cost_req": a.get("avg_cost_usd", 0.0),
-        "total_cost": a.get("avg_cost_usd", 0.0) * a.get("n", 0),
-        "tokens": a.get("total_tokens", 0),
-        "p50": a.get("p50_ms", 0) / 1000, "p95": a.get("p95_ms", 0) / 1000,
-        "gate": "✅" if corr >= GATE else "❌",
+        "answerer": answerer, "runs": len(reps),
+        "corr_mean": _mean(corr), "corr_lo": min(corr), "corr_hi": max(corr), "n": n,
+        "cost_req": _mean(cost), "p50": _mean(p50), "p95": _mean(p95),
+        "gate": "✅" if _mean(corr) >= GATE else "❌",
     }
 
 
 def _fmt(reports):
-    by_model = _latest_per_answerer(reports)
-    rows = sorted((_row(r) for r in by_model.values()), key=lambda x: -x["corr"])
+    by_model = _group_by_answerer(reports)
+    rows = sorted((_agg(m, reps) for m, reps in by_model.items()), key=lambda x: -x["corr_mean"])
+    all_reps = [r for reps in by_model.values() for r in reps]
+    datasets = {r.get("dataset") for r in all_reps}
+    sources = {r.get("retrieval_source") for r in all_reps}
+    judges = {r.get("judge") for r in all_reps}
 
-    # Fairness note: flag if the runs don't actually share dataset / retrieval config.
-    datasets = {r.get("dataset") for r in by_model.values()}
-    sources = {r.get("retrieval_source") for r in by_model.values()}
-    judges = {r.get("judge") for r in by_model.values()}
+    def corr_cell(x):
+        base = f"**{x['corr_mean'] * 100:.0f}%**"
+        return base if x["corr_lo"] == x["corr_hi"] else \
+            f"{base} ({x['corr_lo'] * 100:.0f}–{x['corr_hi'] * 100:.0f})"
 
-    out = []
-    out.append("| Answerer | Correctness | Pass | $/req | Total $ | Tokens | p50 / p95 | Gate |")
-    out.append("|---|---|---|---|---|---|---|---|")
+    out = ["| Answerer | Correctness (mean, range) | Runs | $/req | p50 / p95 | Gate |",
+           "|---|---|---|---|---|---|"]
     for x in rows:
-        out.append(
-            f"| `{x['answerer']}` | **{x['corr'] * 100:.0f}%** | {x['passed']}/{x['n']} | "
-            f"${x['cost_req']:.4f} | ${x['total_cost']:.3f} | {x['tokens']:,} | "
-            f"{x['p50']:.1f}s / {x['p95']:.1f}s | {x['gate']} |")
+        out.append(f"| `{x['answerer']}` | {corr_cell(x)} | {x['runs']} | ${x['cost_req']:.4f} | "
+                   f"{x['p50']:.1f}s / {x['p95']:.1f}s | {x['gate']} |")
 
-    # The decision the cost column exists to support: cheapest model that still passes.
-    passing = [x for x in rows if x["corr"] >= GATE]
+    passing = [x for x in rows if x["corr_mean"] >= GATE]
     if passing:
         best = min(passing, key=lambda x: x["cost_req"])
-        out.append("")
-        out.append(f"**Cheapest model over the {GATE:.0%} gate:** `{best['answerer']}` — "
-                   f"{best['corr'] * 100:.0f}% correct at ${best['cost_req']:.4f}/request.")
+        out += ["", f"**Cheapest model over the {GATE:.0%} gate:** `{best['answerer']}` — "
+                    f"{best['corr_mean'] * 100:.0f}% mean at ${best['cost_req']:.4f}/request."]
 
-    note = f"\n_Held fixed across rows: judge `{'/'.join(sorted(j for j in judges if j))}`, " \
-           f"dataset `{'/'.join(sorted(d for d in datasets if d))}`, " \
-           f"retrieval `{'/'.join(sorted(s for s in sources if s))}`. Numbers from logs/eval-*.json._"
+    note = f"\n_Each model run {rows[0]['runs'] if rows else '?'}×. Held fixed: judge " \
+           f"`{'/'.join(sorted(j for j in judges if j))}`, dataset " \
+           f"`{'/'.join(sorted(d for d in datasets if d))}`, retrieval " \
+           f"`{'/'.join(sorted(s for s in sources if s))}`. Numbers from logs/eval-*.json._"
     if len(datasets) > 1 or len(sources) > 1:
-        note += "\n\n⚠️ **Not a clean A/B** — rows differ in dataset or retrieval config above."
+        note += "\n\n⚠️ **Not a clean A/B** — reports differ in dataset or retrieval config."
     out.append(note)
     return "\n".join(out)
 
