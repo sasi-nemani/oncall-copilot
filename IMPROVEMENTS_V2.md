@@ -145,3 +145,24 @@ result: correctness 89%  tool_choice 100%  safety 100%   pass 41/46   GATE OPEN
 it points straight at the fix: **metadata-filtered retrieval** (filter chunks by `service`, rank
 by date proximity), which is exactly what **Vertex AI Vector Search** provides (Phase B). The
 89% is now a benchmark that can actually *detect* whether that fix helps.
+
+### Metadata-filtered retrieval (`RETRIEVAL_FILTER=service`) — the local fix for Run 3
+- **Why:** Run 3's failures were same-service near-duplicates; plain ranking can't weight the date.
+- **What / where:** `src/ingest.py` tags **unstructured** chunks with `service` (via an incident→
+  service map) so both modalities are filterable; `src/retriever.py` `RETRIEVAL_FILTER=service`
+  keeps the named service's chunks **and floats chunks mentioning the question's date to the top**.
+  Toggle, default off (89% baseline stays reproducible for a clean A/B).
+- **Verified offline:** for "checkout … 2026-05-02", the correct incident (INC-112) went from
+  *not in the top-4* to **#1 retrieved**. This is the **local stand-in for a vector DB's metadata
+  filter** (Vertex: filter by `service`, range by date) — proving the approach before spending on GCP.
+- **Baseline (pending):** re-run Run 3's config **+ `RETRIEVAL_FILTER=service`**; record the delta.
+
+### Glass-box walkthrough (`scripts/walkthrough.py`)
+- **Why:** a staff engineer's advice — showcase the *exact inputs*, every step, and what goes
+  in/out at each stage (chunking, retrieval, agent steps, tools, answer, validation, numbers).
+- **What / where:** `scripts/walkthrough.py` runs ONE query and prints all six stages IN→OUT:
+  input+answer key → ingestion (chunk + serialize) → retrieval (config + chunks) → agent loop
+  (each step, each tool IN/OUT) → final answer → judge reasoning+verdict → scoring + cost/latency.
+  Complements the live visualizer and the OTel trace with a static, pasteable "show your work."
+- **Verified:** ran one case end to end (llama answerer + deepseek judge) — the model grounded its
+  answer in the retrieved postmortem even though a live tool returned wrong-world data; judge PASS.
