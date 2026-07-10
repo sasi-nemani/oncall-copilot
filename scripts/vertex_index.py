@@ -83,8 +83,11 @@ def up():
     # 3. DEPLOY — put the index on the SMALLEST single node (this is what bills hourly).
     if not s.get("deployed"):
         print("[3/3] deploying index to endpoint — ~20-30 min; billing starts when it goes live ...", flush=True)
+        # SHARD_SIZE_MEDIUM (the default the index built with) requires e2-standard-16 — e2-standard-2
+        # is only valid for SHARD_SIZE_SMALL. We tear down within the hour, so the larger node is a
+        # trivial cost and avoids a 20-40 min index rebuild just to serve on a smaller machine.
         ep.deploy_index(index=index, deployed_index_id=DEPLOYED_ID,
-                        min_replica_count=1, max_replica_count=1, machine_type="e2-standard-2")
+                        min_replica_count=1, max_replica_count=1, machine_type="e2-standard-16")
         host = ep.public_endpoint_domain_name
         s = _save(deployed=DEPLOYED_ID, public_domain=host)
         print("      deployed:", DEPLOYED_ID, "| host:", host, flush=True)
