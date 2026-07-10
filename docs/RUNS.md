@@ -1,5 +1,23 @@
 # Run journal — the eval, run by run
 
+## Objective
+
+Build an **on-call incident assistant** — a RAG + tool-using agent that answers "what caused the
+`checkout` incident on May 26, and how was it fixed?" from a corpus of past incidents (postmortems,
+chat logs, alerts, deploys) — and, the harder half, build the **evaluation harness that proves it
+works** and use that harness to *drive* the system's design.
+
+Concretely, the goal of the runs below is to make every change **attributable to a number**. Each run
+holds the system fixed except one variable — tools on/off, the test set, the retrieval strategy — and
+measures the delta on four axes: **correctness** (an independent LLM-as-judge, a different model family
+than the answerer, checks the answer against labelled key facts), **tool-choice** (did the agent call
+the right read-only tools), **safety** (did it refuse when it should, and avoid must-not-say phrases),
+and **cost/latency** (tokens, $/request, p50/p95). A **pass-rate gate** (≥80% correctness) decides
+ship/no-ship. The interesting result is not a high score — it's watching a deliberately *harder* exam
+drop the score, and then a retrieval fix move it back up in a way the easy exam could never have seen.
+
+---
+
 This is the glass box on the *evaluation itself*: every eval run, in order, with the exact config,
 the numbers it produced, **what changed from the run before**, why we changed it, and what the
 result taught us. Read top to bottom and you see how the system — and the benchmark grading it —
@@ -61,7 +79,7 @@ from. *(See it happen: `python scripts/walkthrough.py`, Stage 1.)*
 
 | | How it works | Trade-off | Used in these runs? |
 |---|---|---|---|
-| **Keyword** | Count how many of the question's words appear in each chunk; rank by overlap. | Dead simple, zero dependencies, transparent. Misses synonyms — "can't log in" won't match "authentication failure". | **Yes — all four runs.** |
+| **Keyword** | Count how many of the question's words appear in each chunk; rank by overlap (raw term-overlap — a bag-of-words count, not even TF-IDF weighted). | Dead simple, zero dependencies, transparent. Misses synonyms — "can't log in" won't match "authentication failure". | **Yes — all four runs.** |
 | **Embeddings (semantic)** | Turn each chunk *and* the question into a list of numbers — a **vector** — that captures *meaning*, then match by closeness. "Can't log in" lands near "authentication failure" even with no shared words. | Catches meaning, not just words. Needs a model to produce the vectors. | Available (`RETRIEVAL_MODE=semantic`), off by default. |
 
 **What's an embedding, really?** A small model reads a piece of text and outputs a fixed list of numbers
@@ -74,8 +92,10 @@ noting honestly rather than reaching for embeddings by reflex.
 **3. A vector store — where those vectors live (and what we did instead).**
 A **vector store** is a database purpose-built for embeddings. You put your chunk-vectors in, and it
 answers one question extremely well: *"which chunks are closest in meaning to this one?"* — fast, even
-across millions of chunks — and it can also **filter by metadata** (only `checkout`, only May) and
-**persist to disk**. Managed examples: FAISS, pgvector, Pinecone, **Google Vertex AI Vector Search**.
+across millions of chunks, via **approximate-nearest-neighbour (ANN)** indexes (HNSW, IVF) that trade a
+sliver of recall for large speed-ups over a brute-force cosine scan. It also does **metadata filtering**
+(restrict the search to `service=checkout`, `date` in May) and **persists to disk**. Managed examples:
+FAISS, pgvector, Pinecone, **Google Vertex AI Vector Search**.
 
 **We deliberately don't use one yet.** At 262 chunks it would be overkill. Our "store" is a single flat
 file — `index/chunks.jsonl` — loaded into memory; keyword search scans it directly, and the optional
