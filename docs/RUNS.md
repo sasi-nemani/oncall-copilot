@@ -45,10 +45,12 @@ tools → answer → judge → number), run `python scripts/walkthrough.py`. Thi
 | 2 | + **RAG-only** (`EVAL_RETRIEVAL_ONLY=1`) | 100% | 40/40 | $0.0002 | 5.2s / 14.9s | ✅ open |
 | 3 | + **hardened test set** (46 cases, symptom + refusal) | 89% | 41/46 | $0.0002 | 4.4s / 8.3s | ✅ open |
 | 4 | + **metadata-filtered retrieval** (`RETRIEVAL_FILTER=service`) | **93%** | 43/46 | $0.0002 | 5.4s / 13.3s | ✅ open |
+| 5 | + **managed store** (Vertex Vector Search, semantic + date-range filter) | **83%** | 38/46 | $0.0002 | 7.2s / 30.5s | ✅ open |
 
 The story in one line: **2** proved a wiring bug cost 35 points of correctness; **3** hardened the
 exam so the score could move at all; **4** shipped a retrieval fix and the hardened exam *detected*
-the +4-point gain — which is the entire reason **3** was worth doing.
+the +4-point gain; **5** swapped in a managed vector store and the exam caught it **regressing −10** —
+the "obvious upgrade" made things worse, for a precise and instructive reason.
 
 ---
 
@@ -203,6 +205,46 @@ was built to prove: the hardened exam could detect this 4-point move. An exam st
 not have.**
 
 ---
+
+## Run 5 — managed vector store (Vertex AI Vector Search)
+*(2026-07-10)*
+
+**Config** — Run 3's dataset + RAG-only, but retrieval now runs against a real managed vector store
+instead of the local index: `RETRIEVAL_BACKEND=vertex`. The 262 chunks were embedded
+(`all-MiniLM-L6-v2`, 384-dim — *same model as local*) and loaded into a **brute-force Vertex index**
+with `service` as a categorical **restrict** and the incident date as a numeric **restrict**; queries
+filter by service **and a ±7-day date range**. Answerer/judge unchanged (llama-3.3-70b / deepseek).
+
+**Result** · correctness **83%** · tools 100% · safety 100% · **38/46** · gate **OPEN**
+· $0.0002/req, 39k tokens · p50 7.2s / p95 **30.5s**
+
+**Changed from Run 4:** the retrieval *backend* — local keyword+filter → Vertex semantic+filter.
+
+**Finding (kept — this is the useful one). A managed vector store is not a free upgrade; here it
+regressed −10 points, and the exam pinned exactly why.** Diffing the per-case results against Run 4:
+- **It fixed the 3 target cases.** All three date-disambiguation failures (checkout 05-26, search
+  05-05, search 06-22) now pass — the **date-range restrict did precisely its job**, narrowing the
+  search to the right incident. The feature we came for works.
+- **But it broke 8 others — 5 of them ID lookups** ("Tell me about incident **INC-110**…"). Root
+  cause, confirmed directly: Vertex serves **semantic (embedding)** search, while Run 4 used
+  **keyword**. Keyword matches the exact token `INC-110` and nails the chunk; an *embedding* of
+  "INC-110" is semantically meaningless, so it returns similar-looking incidents (INC-107, INC-109) —
+  the wrong ones. (Verified side-by-side: keyword finds INC-110, semantic doesn't.)
+- **1 refusal case regressed too** — a bug in my query code, not the store: when the date window is
+  correctly empty (a non-existent November incident), my fallback drops the date filter and returns
+  *other* same-service incidents, so the model fabricates instead of refusing. The fallback defeats
+  the refusal it should protect. (Left as a documented bug — the negative result is worth more here
+  than a patched number.)
+
+**The real lesson.** The store's *value* — the metadata/date-range filter — is real and did what a
+hand-rolled heuristic couldn't. But its *default retrieval mode* (pure semantic) lost the exact-token
+matching keyword gives for free. The production answer isn't "local keyword" **or** "managed
+semantic" — it's **hybrid** (keyword for IDs/exact terms + semantic for symptoms/synonyms + a metadata
+filter for disambiguation). And at **262 vectors** a managed ANN store is wildly oversized anyway
+(tree-AH literally refused to build; brute-force is correct at this scale). Vertex earns its place at
+100k+ vectors with real query volume — this run is the honest evidence for *when* to reach for it,
+not a trophy that says we needed it. Total cloud cost for the experiment: ~$0.30, torn down on
+completion; the vectors persist in GCS.
 
 ## How to read a run
 

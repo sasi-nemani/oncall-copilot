@@ -17,6 +17,7 @@ import os
 import re
 import json
 import datetime
+import threading
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATE = os.path.join(ROOT, "index", "vertex_resources.json")
@@ -26,20 +27,30 @@ _SERVICES = {"payments", "checkout", "auth", "search", "notifications", "cart", 
 _DATE = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
 
 _EP = _MODEL = _CHUNKS = _STATE = None
+_LOCK = threading.Lock()          # eval runs concurrent workers -> guard first-call init (model load)
 
 
 def _load():
     global _EP, _MODEL, _CHUNKS, _STATE
     if _EP is not None:
         return
+    with _LOCK:
+        if _EP is not None:       # another thread finished init while we waited
+            return
+        _init_locked()
+
+
+def _init_locked():
+    global _EP, _MODEL, _CHUNKS, _STATE
     _STATE = json.load(open(STATE))
     from google.cloud import aiplatform
     aiplatform.init(project=os.getenv("GCP_PROJECT", "linkedinpost-agentsalltheway"),
                     location=os.getenv("GCP_REGION", "us-central1"))
-    _EP = aiplatform.MatchingEngineIndexEndpoint(_STATE["endpoint"])
+    ep = aiplatform.MatchingEngineIndexEndpoint(_STATE["endpoint"])
     from sentence_transformers import SentenceTransformer
     _MODEL = SentenceTransformer("all-MiniLM-L6-v2")
     _CHUNKS = {json.loads(l)["id"]: json.loads(l) for l in open(INDEX)}   # id -> chunk
+    _EP = ep                      # assign LAST: the lock-free fast path keys off _EP being set
 
 
 def _question_service(q):

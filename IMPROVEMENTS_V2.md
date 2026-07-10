@@ -171,6 +171,30 @@ by date proximity), which is exactly what **Vertex AI Vector Search** provides (
 - **Verified:** ran one case end to end (llama answerer + deepseek judge) — the model grounded its
   answer in the retrieved postmortem even though a live tool returned wrong-world data; judge PASS.
 
+### Vertex AI Vector Search (Phase B) — managed store, and a measured regression
+- **Why:** Run 4's remaining failures were same-service near-duplicates too close in date for the
+  local date-float heuristic; a real vector store offers a true date-*range* metadata filter. Also
+  JD-named. Built it on GCP (`linkedinpost-agentsalltheway`), ran Run 5, tore it down.
+- **What / where:** `scripts/build_vertex_index_data.py` (embed 262 chunks → Vertex JSONL with
+  `service` restricts + `date` numeric_restricts → GCS), `scripts/vertex_index.py` (`up`/`down`
+  lifecycle with resource state saved per step), `src/vertex_retriever.py` (query: embed → service
+  restrict + ±7-day date range → map neighbour ids back to chunks), `retriever.py` opt-in via
+  `RETRIEVAL_BACKEND=vertex`. GCS bucket = durable store; index/endpoint = ephemeral.
+- **Three preconditions the API surfaced (all real, all fixed):** tree-AH won't build a 262-vector
+  index (too few points → brute-force, which is correct at this scale); Vertex rejects a `.jsonl`
+  extension (must be `.json`); `SHARD_SIZE_MEDIUM` needs `e2-standard-16`, not `e2-standard-2`.
+- **Run 5 (RETRIEVAL_BACKEND=vertex, else identical to Run 4):** correctness **93% → 83%** (38/46).
+  - **Fixed** the 3 target date-disambiguation cases — the date-range restrict did its job.
+  - **Regressed 8**, five of them **ID lookups**: Vertex serves *semantic* search, Run 4 used
+    *keyword*; keyword exact-matches `INC-110`, an embedding of it is meaningless (verified
+    side-by-side: keyword finds INC-110, semantic returns INC-107/109). One refusal regressed via a
+    fallback bug (empty date window → drops filter → model fabricates instead of refusing).
+- **Finding (kept):** a managed vector store is **not a free upgrade**. Its metadata filter is real
+  value; its default *pure-semantic* retrieval lost keyword's exact-token matching → net −10. The
+  right architecture is **hybrid** (keyword + semantic + metadata filter), and at 262 vectors an ANN
+  store is oversized anyway. This is the honest evidence for *when* Vertex is worth it (100k+ vectors),
+  not proof we needed it. Cost ~$0.30, torn down; see [`docs/RUNS.md`](docs/RUNS.md) Run 5.
+
 ### Measured model comparison — cost/latency columns (`scripts/compare_models.py`)
 - **Why:** a pass-rate alone can't answer the business question "which model for the least money and
   latency?" The v1 model table's cost was never measured; per-request telemetry (`pricing.py`,
