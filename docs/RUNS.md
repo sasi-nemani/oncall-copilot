@@ -34,12 +34,64 @@ the +4-point gain — which is the entire reason **3** was worth doing.
 
 ---
 
+## First, the plumbing — in plain English
+
+If you already know what chunking, embeddings, and a vector store are, skip to Run 1. If not, this is
+everything you need to follow the runs.
+
+**The problem.** The assistant answers questions about past incidents by reading a pile of documents —
+postmortems, chat logs, alerts, deploy records. There are too many to hand the model all of them on
+every question (slow, expensive, and it drowns the useful bits). So we do what every "chat with your
+docs" system does: **retrieval** — fetch only the handful of passages that look relevant, and show the
+model just those.
+
+Three steps make that work:
+
+**1. Chunking — cut long documents into bite-sized passages.**
+A 500-word postmortem is one *document* but several *ideas*. We split each doc into ~600-character
+passages so a single passage ("Root cause: null-pointer in the coupon path…") travels as one clean
+unit instead of being buried in a wall of text. Structured data (CSV/JSON rows — alerts, deploys) gets
+a twist: each row is rewritten into a plain sentence — `Alert ALRT-200: checkout error_rate SEV3,
+resolved…` — so a spreadsheet row is searchable the same way prose is. Our corpus becomes **262
+chunks: 120 from prose + 142 from records**, each tagged with its `service` (one of 8: checkout, auth,
+payments, …). Every chunk keeps a pointer back to its source file, so answers can cite where they came
+from. *(See it happen: `python scripts/walkthrough.py`, Stage 1.)*
+
+**2. Finding the right chunks — two ways to match a question to passages.**
+
+| | How it works | Trade-off | Used in these runs? |
+|---|---|---|---|
+| **Keyword** | Count how many of the question's words appear in each chunk; rank by overlap. | Dead simple, zero dependencies, transparent. Misses synonyms — "can't log in" won't match "authentication failure". | **Yes — all four runs.** |
+| **Embeddings (semantic)** | Turn each chunk *and* the question into a list of numbers — a **vector** — that captures *meaning*, then match by closeness. "Can't log in" lands near "authentication failure" even with no shared words. | Catches meaning, not just words. Needs a model to produce the vectors. | Available (`RETRIEVAL_MODE=semantic`), off by default. |
+
+**What's an embedding, really?** A small model reads a piece of text and outputs a fixed list of numbers
+(a point in space) positioned so that similar *meanings* sit close together. We use **`all-MiniLM-L6-v2`**
+— a compact open model that runs **locally and free**, turning any text into a **384-number vector**.
+"Closeness" is measured by **cosine similarity** (how much two vectors point the same direction). The
+model is optional here precisely because keyword search was already good enough on this corpus — worth
+noting honestly rather than reaching for embeddings by reflex.
+
+**3. A vector store — where those vectors live (and what we did instead).**
+A **vector store** is a database purpose-built for embeddings. You put your chunk-vectors in, and it
+answers one question extremely well: *"which chunks are closest in meaning to this one?"* — fast, even
+across millions of chunks — and it can also **filter by metadata** (only `checkout`, only May) and
+**persist to disk**. Managed examples: FAISS, pgvector, Pinecone, **Google Vertex AI Vector Search**.
+
+**We deliberately don't use one yet.** At 262 chunks it would be overkill. Our "store" is a single flat
+file — `index/chunks.jsonl` — loaded into memory; keyword search scans it directly, and the optional
+embeddings are compared in memory. That's genuinely fine at this size. The one thing a real store gives
+you for free — **filtering by metadata** — is exactly what Run 4 needed, so we hand-rolled a small
+version of it (`RETRIEVAL_FILTER=service`). That it *helped* (below) is the honest argument for adopting
+a real vector store next, rather than adopting one because the buzzword says so.
+
+---
+
 ## Run 1 — corpus baseline, tools ON
 *(2026-07-09, Docker)*
 
 **Config**
 ```
-retrieval : RETRIEVAL_SOURCE=index   (the ingested corpus: structured + unstructured)
+retrieval : RETRIEVAL_SOURCE=index   mode=keyword (word-overlap; see the primer above)
 tools     : ON (default agent loop — get_metric, get_runbook, get_incident_timeline, ...)
 dataset   : evals/corpus_eval.jsonl  ·  answerer llama-3.3-70b  ·  judge deepseek-chat  (OpenRouter)
 ```
