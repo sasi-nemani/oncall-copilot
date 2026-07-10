@@ -63,8 +63,17 @@ def _persist(name, vectors, ids, source):
           f"{BUCKET}/datasets/{name}/")
 
 
+def _clean_corpus():
+    # generate_corpus.py OVERWRITES per-incident files but never DELETES stale ones, so shrinking the
+    # incident count (e.g. 1500 -> 40) would otherwise leave old files behind and inflate the index.
+    # Wipe the corpus tree first so a regen is exact.
+    import shutil
+    shutil.rmtree(os.path.join(ROOT, "corpus"), ignore_errors=True)
+
+
 def gen_real(n_incidents, name):
     print(f"[{name}] generating a {n_incidents}-incident corpus (regenerates local corpus) ...")
+    _clean_corpus()
     subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "generate_corpus.py"),
                     str(n_incidents)], check=True, cwd=ROOT)
     subprocess.run([sys.executable, "-m", "src.ingest"], check=True, cwd=ROOT)
@@ -90,6 +99,7 @@ def gen_synth(n_vectors, name):
 
 def restore():
     print("restoring the 40-incident baseline corpus + index ...")
+    _clean_corpus()                                 # wipe stale files from a larger run first
     subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "generate_corpus.py"), "40"],
                    check=True, cwd=ROOT)
     subprocess.run([sys.executable, "-m", "src.ingest"], check=True, cwd=ROOT)
