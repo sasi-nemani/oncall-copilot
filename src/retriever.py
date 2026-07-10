@@ -156,6 +156,12 @@ def _question_service(question):
 
 
 def retrieve(question, k=4, mode=None):
+    # RETRIEVAL_BACKEND=vertex: delegate to the managed Vertex AI Vector Search backend (its own
+    # service restrict + date-range numeric filter). Opt-in and import-on-use, so the local path
+    # keeps zero cloud dependencies and behaves exactly as before when the flag is unset.
+    if os.getenv("RETRIEVAL_BACKEND") == "vertex":
+        from src import vertex_retriever
+        return vertex_retriever.retrieve(question, k)
     # mode: keyword | semantic | hybrid (defaults to config.RETRIEVAL_MODE).
     mode = mode or config.RETRIEVAL_MODE
     # RETRIEVAL_FILTER=service: metadata-filtered retrieval. Keep the named service's chunks AND

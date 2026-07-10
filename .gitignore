@@ -29,3 +29,8 @@ index/
 *.swp
 .idea/
 .vscode/
+
+# Vertex Vector Search — ephemeral resource state + large local vectors (rebuilt from corpus)
+index/vertex_datapoints.jsonl
+index/vertex_resources.json
+index/vertex_meta.json
