@@ -34,3 +34,6 @@ index/
 index/vertex_datapoints.jsonl
 index/vertex_resources.json
 index/vertex_meta.json
+
+# ANN experiment datasets — large local vectors/datapoints, durably stored in GCS
+datasets/
