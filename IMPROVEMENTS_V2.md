@@ -123,5 +123,24 @@ ace can't catch a regression. Next entry hardens it.
     hallucinating, which the easy set never could.
 - **Expectation:** the re-baseline should land *below* 100% (the refusal cases especially) — that
   drop is the point; it gives the benchmark headroom to detect regressions and separate configs.
-- **Baseline (pending):** re-run `EVAL_DATASET=evals/corpus_eval.jsonl RETRIEVAL_SOURCE=index
-  EVAL_RETRIEVAL_ONLY=1` and record here.
+### Run 3 — **hardened** corpus baseline, RAG-only (2026-07-10, Docker)
+```
+config: RETRIEVAL_SOURCE=index  EVAL_RETRIEVAL_ONLY=1  EVAL_DATASET=evals/corpus_eval.jsonl  EVAL_WORKERS=4
+        answerer=meta-llama/llama-3.3-70b-instruct  judge=deepseek/deepseek-chat  (OpenRouter)
+result: correctness 89%  tool_choice 100%  safety 100%   pass 41/46   GATE OPEN
+        cost $0.0002/req · $0.007 total · 42,495 tokens   latency p50 4.4s · p95 8.3s
+```
+**Breakdown of the 5 failures — the point of hardening:**
+- **ID-based cases: 15/15 ✓** (easy lookup, as expected).
+- **Refusal cases: 6/6 ✓** — the model said "no record" for the non-existent Oct–Dec incidents
+  rather than fabricate one. Good grounding discipline; the strongest discriminator *passed*.
+- **Symptom-based cases: 20/25** — **all 5 failures live here** ("Walk me through the {service}
+  issue around {date}", no ID).
+
+**Finding (kept):** the hardened set gave real headroom (100% → 89%), and every failure is the
+*same mode*: **near-duplicate incident disambiguation**. Several same-service incidents exist
+(templated causes), so when asked by service + date with no ID, retrieval/answer grabbed the
+**wrong incident** and returned its cause/fix. This is a genuine RAG limitation, not noise — and
+it points straight at the fix: **metadata-filtered retrieval** (filter chunks by `service`, rank
+by date proximity), which is exactly what **Vertex AI Vector Search** provides (Phase B). The
+89% is now a benchmark that can actually *detect* whether that fix helps.
