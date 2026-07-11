@@ -1,0 +1,15 @@
+# gcloud builds submit uses THIS file (not .dockerignore) to decide what to upload as build source.
+.git/
+.env
+logs/
+datasets/          # ANN vectors (100s of MB) — live in GCS, not needed to build
+deploy/            # terraform state + provider binaries
+index/             # regenerated at image build
+corpus/            # regenerated at image build
+data_v2/           # regenerated at image build
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+.venv/
+venv/
