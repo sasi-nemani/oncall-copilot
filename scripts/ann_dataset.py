@@ -66,9 +66,10 @@ def _persist(name, vectors, ids, source):
 def _clean_corpus():
     # generate_corpus.py OVERWRITES per-incident files but never DELETES stale ones, so shrinking the
     # incident count (e.g. 1500 -> 40) would otherwise leave old files behind and inflate the index.
-    # Wipe the corpus tree first so a regen is exact.
+    # Wipe only the GENERATED subdirs (not corpus/README.md or other committed docs) so a regen is exact.
     import shutil
-    shutil.rmtree(os.path.join(ROOT, "corpus"), ignore_errors=True)
+    for sub in ("structured", "unstructured"):
+        shutil.rmtree(os.path.join(ROOT, "corpus", sub), ignore_errors=True)
 
 
 def gen_real(n_incidents, name):
