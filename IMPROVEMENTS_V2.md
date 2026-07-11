@@ -213,6 +213,17 @@ by date proximity), which is exactly what **Vertex AI Vector Search** provides (
   keyword/semantic/hybrid/routing tradeoffs (with our numbers + the INC-110 proof), Vertex specifics
   (algorithms, shard↔machine, filtering, cost/no-scale-to-zero, the 3 preconditions we hit).
 
+### Live-investigation polish — investigation-guided system prompt
+- **Why:** on the unified v2 world, the agent *could* investigate but sometimes (a) checked the wrong
+  signal (looked at a healthy `latency_p99` and missed the firing `latency_p95` alert → wrongly "healthy"),
+  or (b) produced a data dump (listed all nine deploys) instead of naming the likely cause. Live eval 3/4.
+- **What / where:** `src/agent.py` `SYSTEM_PROMPT` — added an investigation ORDER (firing alerts +
+  alerting metric first, then deploys + timeline; the change that *precedes* a breach is the likely
+  cause) and a SYNTHESIS rule (name the single most likely cause + remediation, don't dump raw output);
+  strengthened the health check ("healthy" needs a metric confirming it AND no alert firing).
+- **Result:** live eval **3/4 → 4/4** (tools ON, v2 world); historical eval **98%** (45/46) —
+  statistically unchanged from Run 7's 100% (within ±1–2 run-to-run). Better investigation, no regression.
+
 ### Measured model comparison — cost/latency columns (`scripts/compare_models.py`)
 - **Why:** a pass-rate alone can't answer the business question "which model for the least money and
   latency?" The v1 model table's cost was never measured; per-request telemetry (`pricing.py`,
