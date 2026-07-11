@@ -5,6 +5,14 @@ deploy/gcp/*.tfstate*   # terraform state can hold secrets
 deploy/gcp/.terraform
 deploy/gcp/terraform.tfvars
 
+# Large / regenerated dirs not needed in the image (Dockerfile regenerates corpus+index at build
+# and never COPYs these) — keeps the Cloud Build upload small.
+datasets/
+deploy/
+index/
+corpus/
+data_v2/
+
 # Junk that just bloats the image / breaks reproducibility.
 __pycache__/
 *.pyc

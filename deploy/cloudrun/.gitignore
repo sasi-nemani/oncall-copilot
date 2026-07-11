@@ -1,0 +1,8 @@
+# Terraform state can contain resource metadata — never commit it.
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+tfplan
+# tfvars may hold project-specific values — keep out of the repo.
+terraform.tfvars
