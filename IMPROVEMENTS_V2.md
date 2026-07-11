@@ -213,6 +213,21 @@ by date proximity), which is exactly what **Vertex AI Vector Search** provides (
   keyword/semantic/hybrid/routing tradeoffs (with our numbers + the INC-110 proof), Vertex specifics
   (algorithms, shard↔machine, filtering, cost/no-scale-to-zero, the 3 preconditions we hit).
 
+### Deploy-as-code — Cloud Run + Terraform (shipped + verified live)
+- **Why:** back the "production infrastructure, not a prototype" claim — the app deployable from code,
+  one command up/down. JD-named (Google FDE/SRE).
+- **What / where:** `deploy/cloudrun/` — Terraform for a Cloud Run v2 service (min=0 **scale-to-zero**)
+  fed by an Artifact Registry image, under a **least-privilege runtime SA** whose only permission is
+  reading the LLM key from **Secret Manager**. `deploy.sh` stages it: prereq apply → add key via gcloud
+  (**never in tfstate/repo**) → Cloud Build → full apply. Authenticated-only by default (a public URL
+  making paid LLM calls is abusable; one-var toggle). `.gcloudignore` keeps the build upload lean.
+- **Shipped & verified:** deployed to `linkedinpost-agentsalltheway`; the service serves the visualizer
+  UI at an HTTPS URL — **HTTP 200 in 0.3s** on an authenticated cold-ish start. 9 resources, tfstate
+  gitignored.
+- **Gotcha (documented):** on a locked-down project the default compute SA (Cloud Build's build SA)
+  has no roles → 403; fixed with a one-time `roles/cloudbuild.builds.builder` grant (README).
+- **Teardown:** `terraform destroy`; scale-to-zero means idle cost ≈ $0 even if left up.
+
 ### Live-investigation polish — investigation-guided system prompt
 - **Why:** on the unified v2 world, the agent *could* investigate but sometimes (a) checked the wrong
   signal (looked at a healthy `latency_p99` and missed the firing `latency_p95` alert → wrongly "healthy"),
