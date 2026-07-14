@@ -1,0 +1,50 @@
+---
+description: On-Call Copilot — repo conventions, architecture, and how to make changes safely.
+globs:
+alwaysApply: true
+---
+
+# On-Call Copilot — working rules for the agent
+
+An AI incident-assistant: **RAG + a read-only-tool agent loop**, graded by an **eval harness**. The
+project's whole ethos is *engineering AI like production infrastructure* — so favour small, measured,
+reversible changes over clever ones.
+
+## Stack & style
+- **Python 3.12, standard-library-first.** No web framework (the visualizer is `http.server`); flat
+  **JSONL** files, not a database. Don't add heavy dependencies without a clear reason.
+- **Small, focused files** (200–400 lines). Prefer new modules over growing existing ones.
+- **Immutability** — return new objects; don't mutate inputs in place.
+- **Provider-agnostic LLM layer** (`src/llm.py`): every model call goes through it and returns
+  `usage {in,out}` + `latency_ms`. Never call a vendor SDK directly elsewhere.
+
+## Where things live
+- `src/agent.py` — the agent loop (observe→act→observe, max-steps). `src/retriever.py` — RAG (keyword/
+  semantic/hybrid, metadata filter, query routing; Vertex backend behind `RETRIEVAL_BACKEND=vertex`).
+- `src/tools.py` — read-only ops tools (metrics/deploys/alerts/logs/timeline/runbook). `mcp_server/` —
+  the same tools over MCP. `src/pricing.py`/`src/otel.py` — cost + tracing. `evals/` — the exam.
+- `docs/RUNS.md` (run journal) and `IMPROVEMENTS_V2.md` (change log) are the source of truth for results.
+
+## How to make a change (the method that matters here)
+1. **Change one variable at a time.** Retrieval/agent behaviour is env-driven (`RETRIEVAL_MODE`,
+   `RETRIEVAL_FILTER`, `RETRIEVAL_ROUTE`, `RETRIEVAL_BACKEND`, `TOOLS_DATA_DIR`, `EVAL_RETRIEVAL_ONLY`) —
+   add a toggle, default it OFF, so the baseline stays reproducible.
+2. **Measure it.** Run `python -m evals.run_evals` and compare correctness / tool-choice / safety /
+   cost / latency against the previous run. The **80% correctness gate** decides ship/no-ship.
+3. **Keep negative results.** If a change makes the score worse, that's a finding — record it in
+   `IMPROVEMENTS_V2.md` / `docs/RUNS.md`, don't bury it.
+4. **Determinism is sacred.** Corpus + eval set are seeded (fixed seed, fixed base date) and
+   regenerated in the Docker build. Never introduce `datetime.now()`/unseeded randomness into anything
+   the exam depends on.
+
+## Guardrails
+- **Secrets:** `.env` is gitignored and must never be committed or baked into the Docker image. Keys
+  live in env / Secret Manager only.
+- **Docs honesty:** only real, measured numbers in `docs/` — no invented benchmarks; scope claims to
+  "on this exam."
+- **Tools are read-only by construction.** Don't add a tool that mutates state; the agent proposes
+  remediation, humans execute it.
+
+## Checks before you call a change done
+- `python -m unittest discover tests` (keyless checks) and `python -m evals.run_evals` (the exam).
+- Secret-scan the diff. Update `IMPROVEMENTS_V2.md` with what changed, why, and the measured delta.

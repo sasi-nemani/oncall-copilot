@@ -5,8 +5,9 @@ Companion to [IMPROVEMENTS.md](./IMPROVEMENTS.md) (v1). **v2** is the JD-driven 
 containerized, cloud-ready, and fed by a real structured + unstructured data pipeline. Same
 honesty rule as v1: real configs, real numbers, and the failures kept.
 
-Targets: Google FDE (vector DBs, structured+unstructured pipelines, tracing, state management,
-CI-gated evals, Cloud Run/Vertex), with Mistral (LoRA) and NVIDIA (NeMo Guardrails) as P1.
+Scope: the production-shaped capabilities an enterprise AI team cares about — vector search,
+structured + unstructured ingestion pipelines, tracing, state management, CI-gated evals, and
+cloud deploy (Cloud Run / Vertex).
 
 ---
 
@@ -53,7 +54,7 @@ CI-gated evals, Cloud Run/Vertex), with Mistral (LoRA) and NVIDIA (NeMo Guardrai
 ### 5 · OpenTelemetry tracing (+ trace demo + state doc)
 - **Why:** the JD names "granular tracing" and "state management" as production blockers.
 - **What / where:**
-  - `src/otel.py` — opt-in tracer (`OTEL_ENABLED=1`), no-op when off / SDK absent. Swappable exporter (console now; Cloud Trace in Phase B — one line). `span()` / `set_attrs()` / `traced()`.
+  - `src/otel.py` — opt-in tracer (`OTEL_ENABLED=1`), no-op when off / SDK absent. Swappable exporter (console locally; a one-line change to Cloud Trace in prod). `span()` / `set_attrs()` / `traced()`.
   - `src/agent.py` — root `agent.query` span; child spans for retrieve / each `llm.call` (model, tokens, latency attrs) / each tool call. Auto-nested → one trace per query.
   - `trace_demo.py` — `python trace_demo.py "<question>"` prints the full span tree. Verified on DeepSeek: span duration matched the model's self-reported latency.
   - `docs/state-management.md` — the neutral log *is* the state; caller-owned history; `memory.py` sliding-window trim (oldest whole turn first, char budget); honest tradeoff + path to a durable per-session store.

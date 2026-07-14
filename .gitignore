@@ -37,3 +37,6 @@ index/vertex_meta.json
 
 # ANN experiment datasets — large local vectors/datapoints, durably stored in GCS
 datasets/
+
+# Claude Code local session data
+.claude/
