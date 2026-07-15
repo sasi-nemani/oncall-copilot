@@ -40,3 +40,7 @@ datasets/
 
 # Claude Code local session data
 .claude/
+
+# ADK local runtime (sessions db, etc.)
+.adk/
+adk_agent/.adk/
