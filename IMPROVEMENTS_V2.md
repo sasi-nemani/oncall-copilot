@@ -257,3 +257,17 @@ by date proximity), which is exactly what **Vertex AI Vector Search** provides (
   *most* expensive per answered request (verbose → more output tokens) and the slowest (24s p95). All
   three cleared the 80% gate, so cost + latency, not correctness, are the deciding columns — which is
   the whole point of adding them.
+
+### ADK port — the multi-agent pipeline on Google's Agent Development Kit
+- **Why:** the triage → investigate → verify → postmortem pipeline was hand-orchestrated in
+  `src/agents.py`. ADK is Google's own agent framework, so a port makes the hand-rolled-vs-framework
+  choice a measurable one rather than a preference.
+- **What / where:** `adk_agent/` — a `SequentialAgent` of four `LlmAgent`s that reuse `src/tools.py`
+  (each tool wrapped as a typed function ADK can read). Runs end-to-end via `adk run adk_agent`:
+  triage classifies → investigator calls the ops tools and drafts → verifier checks grounded + safe →
+  postmortem writes the structured summary. The verifier runs on a **different model family
+  (deepseek)** than the investigator (gemini) — independence, so it isn't grading its own output.
+  Verified grounded on real tool data (checkout-v93 / PaymentMapper / roll-back-to-v92).
+- **Scope of this first port (kept honest):** the happy path. The one-revision loop and the
+  `out_of_scope` early-exit from `src/agents.py` are deliberately left out (control-flow detail, not
+  the point); the investigator uses the tools but not RAG context.
